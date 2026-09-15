@@ -1,6 +1,5 @@
 import { ResultsPreview } from "@/components/ResultsPreview";
 import { AblationTable } from "@/components/AblationTable";
-import { GlassCard } from "@/components/GlassCard";
 import { DemoBadge } from "@/components/DemoBadge";
 import { Reveal } from "@/components/Reveal";
 import { DEMO_METRICS } from "@/lib/content";
@@ -12,9 +11,9 @@ export default function ResultsPage() {
     <div className="pt-20">
       <section className="mx-auto max-w-4xl px-6 pt-20 pb-8 text-center">
         <Reveal>
-          <p className="mb-3 text-xs uppercase tracking-widest text-ink-faint">Results</p>
+          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-ink-faint">Results</p>
           <h1 className="text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
-            Metrics dashboard
+            Metrics
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-ink-muted">
             No model has been trained on GAMMA yet in this project. The layout
@@ -25,16 +24,14 @@ export default function ResultsPage() {
       </section>
 
       <section className="mx-auto max-w-4xl px-6 py-8">
-        <Reveal className="mb-6 flex justify-center">
+        <Reveal className="mb-10 flex justify-center">
           <DemoBadge text="No experiments run yet" />
         </Reveal>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 border-t border-white/10 pt-10 sm:grid-cols-5">
           {DEMO_METRICS.metrics.map((m, i) => (
             <Reveal key={m.name} delay={i * 0.05}>
-              <GlassCard className="text-center">
-                <div className="text-2xl font-semibold text-ink-faint">{m.value}</div>
-                <div className="mt-1 text-xs text-ink-muted">{m.name}</div>
-              </GlassCard>
+              <div className="text-4xl font-semibold tracking-tight text-ink-faint sm:text-5xl">{m.value}</div>
+              <div className="mt-2 text-xs uppercase tracking-wider text-ink-muted">{m.name}</div>
             </Reveal>
           ))}
         </div>
