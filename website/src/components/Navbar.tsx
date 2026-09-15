@@ -29,7 +29,7 @@ export function Navbar() {
         aria-label="Primary"
       >
         <Link href="/" className="flex items-center gap-2 text-sm font-semibold tracking-wide text-ink">
-          <span className="h-2 w-2 rounded-full bg-accent-cyan" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-accent-champagne" aria-hidden />
           MM&#8209;RETINA
         </Link>
 
@@ -38,7 +38,7 @@ export function Navbar() {
             <li key={link.href}>
               <Link
                 href={link.href}
-                className="text-sm text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-cyan"
+                className="text-sm text-ink-muted transition-colors hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-champagne"
               >
                 {link.label}
               </Link>
@@ -48,7 +48,7 @@ export function Navbar() {
 
         <Link
           href="/demo"
-          className="rounded-full bg-white/95 px-4 py-1.5 text-sm font-medium text-black transition-transform hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-cyan"
+          className="rounded-full bg-white/95 px-4 py-1.5 text-sm font-medium text-black transition-transform hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-champagne"
         >
           Launch demo
         </Link>

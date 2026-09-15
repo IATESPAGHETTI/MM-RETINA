@@ -41,7 +41,7 @@ export function DatasetFacts() {
           href={VERIFIED_GAMMA_FACTS.officialUrl}
           target="_blank"
           rel="noreferrer"
-          className="text-ink underline underline-offset-4 hover:text-accent-cyan"
+          className="text-ink underline underline-offset-4 hover:text-accent-champagne"
         >
           gamma.grand-challenge.org
         </a>
