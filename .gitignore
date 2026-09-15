@@ -1,0 +1,29 @@
+# Large model weights / dataset archives — not suitable for git
+*.zip
+*.h5
+*.keras
+gamma_manifest.json
+audit_report.json
+
+# Actual GAMMA dataset clone (license-restricted, huge, has its own git/LFS remote)
+Adv_prj4/GAMMA/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / Next.js (website/)
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+.env*
+.vercel/
+
+# OS
+.DS_Store
+Thumbs.db
