@@ -5,8 +5,9 @@
 gamma_manifest.json
 audit_report.json
 
-# Actual GAMMA dataset clone (license-restricted, huge, has its own git/LFS remote)
+# Actual GAMMA dataset clone(s) (license-restricted, huge, own git/LFS remote)
 Adv_prj4/GAMMA/
+/GAMMA/
 
 # Python
 __pycache__/
