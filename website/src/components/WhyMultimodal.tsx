@@ -1,20 +1,40 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Reveal } from "./Reveal";
 
-const SIGNALS = [
-  {
-    label: "OCT",
-    desc: "Detailed structural information",
-    align: "left" as const,
-  },
-  {
-    label: "Fundus",
-    desc: "Broader retinal view",
-    align: "right" as const,
-  },
-];
+/** Schematic cross-section of retinal layers — a labeled diagram, not a
+ * stand-in for a real B-scan (we don't yet have extracted per-slice pixels
+ * from the GAMMA volumes; see dataset/README.md). Kept honest rather than
+ * dressing up a fabricated "scan". */
+function OCTSchematic() {
+  const layers = [
+    { d: "M0,40 C60,20 140,60 220,35", opacity: 0.5 },
+    { d: "M0,70 C60,55 140,90 220,68", opacity: 0.7 },
+    { d: "M0,100 C60,88 140,118 220,98", opacity: 0.9 },
+    { d: "M0,128 C60,120 140,142 220,126", opacity: 0.6 },
+  ];
+  return (
+    <svg viewBox="0 0 220 160" className="h-full w-full" role="img" aria-label="Schematic cross-section of retinal layers, representing an OCT B-scan">
+      <rect width="220" height="160" fill="var(--bg-elevated)" />
+      {layers.map((l, i) => (
+        <motion.path
+          key={i}
+          d={l.d}
+          fill="none"
+          stroke="var(--accent-champagne)"
+          strokeWidth={1}
+          strokeOpacity={l.opacity}
+          initial={{ pathLength: 0 }}
+          whileInView={{ pathLength: 1 }}
+          viewport={{ once: true }}
+          transition={{ duration: 1.2, delay: i * 0.15, ease: "easeInOut" }}
+        />
+      ))}
+    </svg>
+  );
+}
 
 export function WhyMultimodal() {
   return (
@@ -28,55 +48,37 @@ export function WhyMultimodal() {
         </h2>
       </Reveal>
 
-      <div className="relative mt-24 grid grid-cols-1 items-center gap-16 md:grid-cols-2">
-        {SIGNALS.map((s, i) => (
-          <Reveal key={s.label} delay={i * 0.1} className={s.align === "right" ? "md:text-right" : ""}>
-            <div className={`flex flex-col gap-3 ${s.align === "right" ? "md:items-end" : ""}`}>
-              <span className="text-5xl font-semibold tracking-tight text-ink sm:text-6xl">{s.label}</span>
-              <span className="max-w-xs text-sm leading-relaxed text-ink-muted">{s.desc}</span>
-            </div>
-          </Reveal>
-        ))}
+      <div className="mt-20 grid grid-cols-1 gap-10 md:grid-cols-2">
+        <Reveal>
+          <div className="overflow-hidden rounded-2xl border border-white/8">
+            <OCTSchematic />
+          </div>
+          <div className="mt-4 flex flex-col gap-1">
+            <span className="text-2xl font-semibold tracking-tight text-ink">OCT</span>
+            <span className="text-sm text-ink-muted">Detailed structural information — cross-sectional layers of the retina</span>
+          </div>
+        </Reveal>
 
-        {/* Converging connector, hidden on small screens where the two
-            columns stack and a diagonal line reads as noise. */}
-        <svg
-          className="pointer-events-none absolute inset-0 hidden w-full md:block"
-          viewBox="0 0 400 120"
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          <motion.path
-            d="M 60 10 C 150 10, 150 60, 200 60"
-            fill="none"
-            stroke="url(#whyGradient)"
-            strokeWidth="1"
-            initial={{ pathLength: 0, opacity: 0 }}
-            whileInView={{ pathLength: 1, opacity: 0.8 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1, delay: 0.3, ease: "easeInOut" }}
-          />
-          <motion.path
-            d="M 340 10 C 250 10, 250 60, 200 60"
-            fill="none"
-            stroke="url(#whyGradient)"
-            strokeWidth="1"
-            initial={{ pathLength: 0, opacity: 0 }}
-            whileInView={{ pathLength: 1, opacity: 0.8 }}
-            viewport={{ once: true }}
-            transition={{ duration: 1, delay: 0.45, ease: "easeInOut" }}
-          />
-          <defs>
-            <linearGradient id="whyGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#6fd8e8" />
-              <stop offset="100%" stopColor="#9c8cf0" />
-            </linearGradient>
-          </defs>
-        </svg>
+        <Reveal delay={0.1}>
+          <div className="relative aspect-[220/160] overflow-hidden rounded-2xl border border-white/8">
+            <Image
+              src="/samples/gamma-0001-fundus.jpg"
+              alt="Real color fundus photograph from the GAMMA dataset"
+              fill
+              sizes="(min-width: 768px) 45vw, 90vw"
+              className="object-cover"
+              style={{ filter: "saturate(0.85) contrast(1.05)" }}
+            />
+          </div>
+          <div className="mt-4 flex flex-col gap-1">
+            <span className="text-2xl font-semibold tracking-tight text-ink">Fundus</span>
+            <span className="text-sm text-ink-muted">A broader color photograph of the retina and optic disc</span>
+          </div>
+        </Reveal>
       </div>
 
-      <Reveal delay={0.3} className="mx-auto mt-16 max-w-xl text-center">
-        <p className="text-xs uppercase tracking-[0.3em] text-accent-cyan">Fused representation</p>
+      <Reveal delay={0.25} className="mx-auto mt-16 max-w-xl text-center">
+        <p className="text-xs uppercase tracking-[0.3em] text-accent-champagne">Fused representation</p>
         <p className="mt-4 text-ink-muted leading-relaxed">
           The model processes both separately, then learns how the two
           sources of information relate to each other before making a

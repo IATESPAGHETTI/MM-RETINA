@@ -33,7 +33,7 @@ export default function DemoPage() {
               <button
                 type="button"
                 onClick={() => setAttempted(true)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 p-8 text-center transition-colors hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-cyan"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 p-8 text-center transition-colors hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-champagne"
               >
                 <span className="text-sm font-medium text-ink">Drop OCT volume</span>
                 <span className="text-xs text-ink-faint">or click to select</span>
@@ -41,7 +41,7 @@ export default function DemoPage() {
               <button
                 type="button"
                 onClick={() => setAttempted(true)}
-                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 p-8 text-center transition-colors hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-cyan"
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 p-8 text-center transition-colors hover:border-white/40 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-champagne"
               >
                 <span className="text-sm font-medium text-ink">Drop fundus image</span>
                 <span className="text-xs text-ink-faint">or click to select</span>

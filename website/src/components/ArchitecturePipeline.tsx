@@ -83,8 +83,8 @@ export function ArchitecturePipeline() {
 
           <defs>
             <linearGradient id="edgeGradient" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#6fd8e8" stopOpacity={0.7} />
-              <stop offset="100%" stopColor="#9c8cf0" stopOpacity={0.7} />
+              <stop offset="0%" stopColor="#d9b98a" stopOpacity={0.7} />
+              <stop offset="100%" stopColor="#b8785a" stopOpacity={0.7} />
             </linearGradient>
           </defs>
 
@@ -106,10 +106,10 @@ export function ArchitecturePipeline() {
                 fill="rgba(255,255,255,0.05)"
                 stroke="rgba(255,255,255,0.12)"
               />
-              <text x={n.x} y={n.y - 3} textAnchor="middle" fontSize="11" fill="#f3f4f6" fontWeight={500}>
+              <text x={n.x} y={n.y - 3} textAnchor="middle" fontSize="11" fill="#f5f3ee" fontWeight={500}>
                 {n.label}
               </text>
-              <text x={n.x} y={n.y + 12} textAnchor="middle" fontSize="8.5" fill="#9aa1ac">
+              <text x={n.x} y={n.y + 12} textAnchor="middle" fontSize="8.5" fill="#b8b5af">
                 {n.sub}
               </text>
             </motion.g>
