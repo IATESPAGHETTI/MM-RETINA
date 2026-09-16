@@ -1,10 +1,11 @@
 import { ResultsPreview } from "@/components/ResultsPreview";
 import { AblationTable } from "@/components/AblationTable";
-import { DemoBadge } from "@/components/DemoBadge";
 import { Reveal } from "@/components/Reveal";
-import { DEMO_METRICS } from "@/lib/content";
+import { REAL_RESULTS } from "@/lib/content";
 
 export const metadata = { title: "Results — MM-RETINA" };
+
+const fusionRun = REAL_RESULTS.runs.find((r) => r.name.startsWith("Fusion"))!;
 
 export default function ResultsPage() {
   return (
@@ -16,21 +17,26 @@ export default function ResultsPage() {
             Metrics
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-ink-muted">
-            No model has been trained on GAMMA yet in this project. The layout
-            below is real; the numbers are not — every metric is blank until
-            it&apos;s measured on a held-out, patient-level test split.
+            The first real training runs on GAMMA finished on 2026-09-17.
+            Numbers below are real, measured on a held-out, patient-level
+            test split — and preliminary, from a single 14-sample split.
           </p>
         </Reveal>
       </section>
 
       <section className="mx-auto max-w-4xl px-6 py-8">
-        <Reveal className="mb-10 flex justify-center">
-          <DemoBadge text="No experiments run yet" />
+        <Reveal className="mb-3 text-center text-xs uppercase tracking-[0.3em] text-ink-faint">
+          Fusion model (fundus + OCT)
         </Reveal>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-10 border-t border-white/10 pt-10 sm:grid-cols-5">
-          {DEMO_METRICS.metrics.map((m, i) => (
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 border-t border-white/10 pt-10 sm:grid-cols-4">
+          {[
+            { name: "Accuracy", value: `${(fusionRun.accuracy * 100).toFixed(1)}%` },
+            { name: "Balanced acc.", value: `${(fusionRun.balancedAccuracy * 100).toFixed(1)}%` },
+            { name: "Macro F1", value: fusionRun.macroF1.toFixed(3) },
+            { name: "ROC-AUC", value: fusionRun.rocAuc.toFixed(3) },
+          ].map((m, i) => (
             <Reveal key={m.name} delay={i * 0.05}>
-              <div className="text-4xl font-semibold tracking-tight text-ink-faint sm:text-5xl">{m.value}</div>
+              <div className="text-4xl font-semibold tracking-tight text-ink sm:text-5xl">{m.value}</div>
               <div className="mt-2 text-xs uppercase tracking-wider text-ink-muted">{m.name}</div>
             </Reveal>
           ))}
