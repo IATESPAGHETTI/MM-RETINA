@@ -5,6 +5,74 @@ failed ones — a failed run is still real information.
 
 ---
 
+## cv-smoke-test-1
+
+- **Date:** 2026-09-17
+- **Git commit:** a4a9da4
+- **Purpose:** validate `training/cross_validate.py` end-to-end (fold
+  construction, per-fold split writing, leakage check, training, checkpoint
+  reload, evaluation) before committing to a full 5-fold x 3-modality run.
+- **Command:** `python cross_validate.py --smoke-test`
+- **Fold construction:** 100 patients round-robin-assigned (grade-stratified,
+  seed=42) across 5 folds: sizes {0: 21, 1: 20, 2: 20, 3: 20, 4: 19}. Fold 0
+  verified programmatically to have zero patient overlap between its
+  train (79 patients) and val (21 patients) sets.
+- **Real 1-epoch train+eval, fold 0, tiny config (img_size=96, oct_slices=4,
+  batch_size=4, 1 epoch):**
+  - fundus: best_epoch=1, val_loss=1.0616, eval_accuracy=0.571 (n=21), 9.6s
+  - oct: best_epoch=1, val_loss=1.1394, eval_accuracy=0.381 (n=21), 8.2s
+  - fusion: best_epoch=1, val_loss=1.0820, eval_accuracy=0.333 (n=21), 8.4s
+- **Status:** PASSED. These accuracy numbers are from a single untrained-ish
+  epoch on tiny images — meaningless as performance numbers, only useful to
+  confirm the full fold→train→checkpoint→eval→CSV pipeline runs without
+  error on real data. Smoke-test split/checkpoints deleted after the run.
+- **Notes:** No bugs found this time (unlike the single-split pipeline,
+  which surfaced the manifest-path bug during its own smoke test) — the CV
+  script reuses `run_training`/`run_evaluation`/`GammaMultimodalDataset`
+  unchanged, so it inherited that already-fixed code path.
+
+---
+
+## cv-run-1 (5-fold cross-validation, fundus / OCT / fusion)
+
+- **Date:** 2026-09-17
+- **Git commit:** a4a9da4 (cross_validate.py added same session)
+- **Command:**
+  ```
+  python cross_validate.py --k 5 --epochs 25 --img-size 160 --oct-slices 8 \
+      --batch-size 4 --lr 1e-4 --focal-loss --amp --patience 8 --seed 42
+  ```
+- **Folds:** patient-level, grade-stratified round-robin, seed=42, same
+  fold assignment as cv-smoke-test-1 (sizes 21/20/20/20/19 patients).
+  Each fold's train/val split written to `dataset/splits/cv/fold{0..4}.json`
+  and leakage-checked (hard assertion) before any training on it.
+- **Architecture/hyperparameters:** identical to fusion_run1/fundus_run1/
+  oct_run1 (resnet18 encoders, ImageNet-pretrained, fusion_dim=256,
+  modality_dropout=0.15, focal loss gamma=2.0 with inverse-frequency class
+  weights recomputed per fold's real train counts, AdamW lr=1e-4 wd=1e-4,
+  CosineAnnealingLR, AMP, early stopping patience=8, max 25 epochs) — only
+  the split and modality vary per run, for a fair comparison.
+- **Checkpoints:** NOT retained (15 runs x ~90MB was not worth keeping;
+  only metrics/confusion-matrices/predictions are saved, which is
+  everything needed to reproduce the numbers below without needing to
+  retrain — they are exactly what `evaluate.py`'s output already looks
+  like, just called from inside the CV loop instead of standalone).
+- **Status:** LAUNCHED in background at commit a4a9da4. **This entry is
+  written before the run completes, per the "record before finishing"
+  requirement — every fold's real result and the aggregate mean/std table
+  will be appended below once the run actually finishes. Do not trust any
+  per-fold or aggregate number under this heading that isn't there yet.**
+
+### Per-fold results
+PENDING — 15 runs (5 folds x {fundus, oct, fusion}), each saved to
+`results/cv/<modality>/fold<k>/metrics.json` as it completes.
+
+### Aggregate (mean ± std across 5 folds)
+PENDING — will be computed by `cross_validate.py`'s own aggregation step
+from the 15 real per-fold metrics files, written to `results/cv/summary.json`.
+
+---
+
 ## smoke-test-1
 
 - **Date:** 2026-09-17

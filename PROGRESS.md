@@ -6,6 +6,75 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-09-17 01:15 (5-fold cross-validation: implemented, smoke-tested, launched)
+
+### Completed
+- Read PROGRESS.md and EXPERIMENTS.md first, per the working-brief
+  requirement, before touching anything.
+- Built `training/cross_validate.py`: patient-level, grade-stratified
+  5-fold CV. Deliberately reuses the existing, unmodified
+  `train_multimodal.run_training`, `evaluate.run_evaluation`,
+  `data.GammaMultimodalDataset`, and `model.GammaMultimodalModel` rather
+  than reimplementing training/eval logic — no changes were made to any
+  of those files.
+  - Folds: patients round-robin-assigned per grade group after a seeded
+    shuffle (seed=42), so class balance is similar across folds and every
+    patient lands in exactly one fold.
+  - Per fold, writes a `dataset/splits/cv/fold{k}.json` in the same schema
+    `split_gamma.py` already uses, and hard-asserts zero patient overlap
+    between that fold's train and val sets before any training touches it.
+  - Runs fundus/OCT/fusion for every fold with matched hyperparameters,
+    saves per-fold metrics.json/confusion_matrix.csv/predictions.csv under
+    `results/cv/<modality>/fold<k>/`, then aggregates mean+std (sample std,
+    ddof=1) across folds into `results/cv/summary.json`.
+- **Ran the required smoke test before launching all folds** (real fold
+  construction + 1 real epoch of train+eval for all 3 modalities on real
+  data, tiny image size) — PASSED, see EXPERIMENTS.md `cv-smoke-test-1`.
+  Deleted the smoke-test's split file and checkpoints afterward.
+- Launched the real 5-fold x 3-modality run (15 real training jobs) in the
+  background with the same hyperparameters as the earlier single-split
+  runs (img_size=160, oct_slices=8, batch_size=4, epochs=25 w/ early
+  stopping patience=8, focal loss, AMP).
+
+### Current status
+CV run is IN PROGRESS at the time of this entry. Do not trust any CV
+number until a later PROGRESS.md/EXPERIMENTS.md entry explicitly says the
+run completed — see EXPERIMENTS.md `cv-run-1` for the live/placeholder
+status.
+
+### Files changed
+- `training/cross_validate.py` (new)
+- `EXPERIMENTS.md` — added `cv-smoke-test-1` (complete) and `cv-run-1`
+  (launched, pending real numbers)
+- `PROGRESS.md` — this entry
+- Website: **not touched**, per the explicit instruction not to modify
+  website metrics until CV results actually exist.
+
+### Experiments
+`cv-smoke-test-1` — COMPLETED (sanity check only, not a performance result).
+`cv-run-1` — LAUNCHED, in progress.
+
+### Results
+None yet for the real CV run. `cv-smoke-test-1`'s numbers are explicitly
+not results — see EXPERIMENTS.md for why.
+
+### Problems / blockers
+None. The smoke test caught no new bugs, since this script's core
+train/eval logic is the already-debugged code from the single-split
+pipeline.
+
+### Next action
+1. Wait for `cv-run-1` to actually finish (15 runs — expect this to take
+   a while; do not estimate a number here, check back on the actual
+   process).
+2. Copy the real per-fold and aggregate numbers from
+   `results/cv/summary.json` into EXPERIMENTS.md and this file — verbatim,
+   not rounded/adjusted.
+3. Only then, decide with the user whether/how to reflect the
+   cross-validated (rather than single-split) numbers on the website.
+
+---
+
 ## 2026-09-17 00:20 (first real experiments completed)
 
 ### Completed
