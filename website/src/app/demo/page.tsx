@@ -2,17 +2,27 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { GlassCard } from "@/components/GlassCard";
 import { Reveal } from "@/components/Reveal";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type Modality = "fundus" | "oct" | "fusion";
+type OctMode = "single" | "volume" | null;
 
 const DEMO_IMAGES = {
   fundus: "/demo/fundus/gamma-0001.jpg",
   oct: "/demo/oct/gamma-0001-slice128.jpg",
 };
+
+// The exact 8 indices training/data.py's evenly_spaced_indices(256, 8)
+// samples from a 256-slice volume — real GAMMA sample 0001 slices at
+// those exact positions, already served for the /model OCT viewer.
+const DEMO_OCT_VOLUME_INDICES = [0, 36, 73, 109, 146, 182, 219, 255];
+const DEMO_OCT_VOLUME_URLS = DEMO_OCT_VOLUME_INDICES.map(
+  (i) => `/oct-volume/0001/${String(i).padStart(3, "0")}.jpg`
+);
 
 type PredictResult = {
   success: boolean;
@@ -21,7 +31,7 @@ type PredictResult = {
   probabilities: Record<string, number>;
   inference_time_ms: number;
   model_version: string;
-  oct_repeated_single_slice: boolean;
+  oct_mode: "real_volume" | "repeated_single_slice" | "none" | "n/a";
 };
 
 async function urlToFile(url: string, filename: string): Promise<File> {
@@ -33,8 +43,11 @@ async function urlToFile(url: string, filename: string): Promise<File> {
 export default function DemoPage() {
   const [modality, setModality] = useState<Modality>("fusion");
   const [fundusFile, setFundusFile] = useState<File | null>(null);
-  const [octFile, setOctFile] = useState<File | null>(null);
   const [fundusPreview, setFundusPreview] = useState<string | null>(null);
+
+  const [octMode, setOctMode] = useState<OctMode>(null);
+  const [octFile, setOctFile] = useState<File | null>(null);
+  const [octVolumeFiles, setOctVolumeFiles] = useState<File[] | null>(null);
   const [octPreview, setOctPreview] = useState<string | null>(null);
 
   const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "offline">("checking");
@@ -57,30 +70,64 @@ export default function DemoPage() {
       .catch(() => setBackendStatus("offline"));
   }, []);
 
-  function onFileChange(kind: "fundus" | "oct", file: File | null) {
-    setResult(null);
-    setError(null);
-    if (kind === "fundus") {
-      setFundusFile(file);
-      setFundusPreview(file ? URL.createObjectURL(file) : null);
-    } else {
-      setOctFile(file);
-      setOctPreview(file ? URL.createObjectURL(file) : null);
-    }
+  function resetOct() {
+    setOctFile(null);
+    setOctVolumeFiles(null);
+    setOctPreview(null);
+    setOctMode(null);
   }
 
-  async function selectDemo(kind: "fundus" | "oct") {
-    const file = await urlToFile(DEMO_IMAGES[kind], `demo-${kind}.jpg`);
-    onFileChange(kind, file);
+  function onFundusChange(file: File | null) {
+    setResult(null);
+    setError(null);
+    setFundusFile(file);
+    setFundusPreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  function onOctUpload(file: File | null) {
+    setResult(null);
+    setError(null);
+    setOctMode(file ? "single" : null);
+    setOctFile(file);
+    setOctVolumeFiles(null);
+    setOctPreview(file ? URL.createObjectURL(file) : null);
+  }
+
+  async function selectDemoFundus() {
+    onFundusChange(await urlToFile(DEMO_IMAGES.fundus, "demo-fundus.jpg"));
+  }
+
+  async function selectDemoOctSingle() {
+    setResult(null);
+    setError(null);
+    const file = await urlToFile(DEMO_IMAGES.oct, "demo-oct-single.jpg");
+    setOctMode("single");
+    setOctFile(file);
+    setOctVolumeFiles(null);
+    setOctPreview(URL.createObjectURL(file));
+  }
+
+  async function selectDemoOctVolume() {
+    setResult(null);
+    setError(null);
+    const files = await Promise.all(
+      DEMO_OCT_VOLUME_URLS.map((url, i) => urlToFile(url, `demo-oct-slice${i}.jpg`))
+    );
+    setOctMode("volume");
+    setOctVolumeFiles(files);
+    setOctFile(null);
+    // Show the middle slice as a representative preview.
+    setOctPreview(URL.createObjectURL(files[Math.floor(files.length / 2)]));
   }
 
   const needsFundus = modality === "fundus" || modality === "fusion";
   const needsOct = modality === "oct" || modality === "fusion";
+  const octSatisfied = octMode === "volume" ? (octVolumeFiles?.length ?? 0) === 8 : !!octFile;
   const canRun =
     backendStatus === "online" &&
     !loading &&
     (!needsFundus || fundusFile) &&
-    (!needsOct || octFile);
+    (!needsOct || octSatisfied);
 
   async function runAnalysis() {
     setLoading(true);
@@ -90,7 +137,13 @@ export default function DemoPage() {
       const form = new FormData();
       form.append("modality", modality);
       if (needsFundus && fundusFile) form.append("fundus", fundusFile);
-      if (needsOct && octFile) form.append("oct", octFile);
+      if (needsOct) {
+        if (octMode === "volume" && octVolumeFiles) {
+          octVolumeFiles.forEach((f) => form.append("oct_slices", f));
+        } else if (octFile) {
+          form.append("oct", octFile);
+        }
+      }
 
       const res = await fetch(`${API_URL}/api/predict`, { method: "POST", body: form });
       const data = await res.json();
@@ -109,6 +162,13 @@ export default function DemoPage() {
     }
   }
 
+  const octModeCaption: Record<PredictResult["oct_mode"], string | null> = {
+    real_volume: "8 real OCT slices used as an actual volume",
+    repeated_single_slice: "single OCT image repeated across the model's expected slice sequence",
+    none: null,
+    "n/a": null,
+  };
+
   return (
     <div className="pt-20">
       <section className="mx-auto max-w-3xl px-6 pt-20 pb-8 text-center">
@@ -119,6 +179,15 @@ export default function DemoPage() {
           </h1>
           <p className="mx-auto mt-5 max-w-xl text-ink-muted">
             Runs the actual trained model. Research prototype — not for clinical diagnosis.
+          </p>
+          <p className="mx-auto mt-3 max-w-lg text-xs text-ink-faint">
+            Live demo predictions use trained demonstration checkpoints from
+            the project&apos;s earlier single-split experiments. Reported
+            performance metrics on the{" "}
+            <Link href="/results" className="underline underline-offset-4 hover:text-ink">
+              Results page
+            </Link>{" "}
+            are from the separate 5-fold cross-validation experiment.
           </p>
         </Reveal>
       </section>
@@ -184,13 +253,13 @@ export default function DemoPage() {
                       accept="image/jpeg,image/png,image/webp"
                       className="hidden"
                       disabled={!needsFundus}
-                      onChange={(e) => onFileChange("fundus", e.target.files?.[0] ?? null)}
+                      onChange={(e) => onFundusChange(e.target.files?.[0] ?? null)}
                     />
                   </label>
                   <button
                     type="button"
                     disabled={!needsFundus}
-                    onClick={() => selectDemo("fundus")}
+                    onClick={selectDemoFundus}
                     className="text-ink-muted underline underline-offset-4 hover:text-ink disabled:opacity-40"
                   >
                     Select demo
@@ -206,11 +275,16 @@ export default function DemoPage() {
                 {octPreview ? (
                   <div className="relative h-24 w-24 overflow-hidden rounded-lg">
                     <Image src={octPreview} alt="OCT preview" fill className="object-cover" unoptimized />
+                    {octMode === "volume" && (
+                      <span className="absolute bottom-0.5 right-0.5 rounded bg-black/70 px-1 text-[9px] text-ink">
+                        8-slice
+                      </span>
+                    )}
                   </div>
                 ) : (
                   <span className="text-sm font-medium text-ink">OCT B-scan</span>
                 )}
-                <div className="flex gap-2 text-xs">
+                <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-xs">
                   <label className="cursor-pointer text-ink-muted underline underline-offset-4 hover:text-ink">
                     Upload
                     <input
@@ -218,18 +292,31 @@ export default function DemoPage() {
                       accept="image/jpeg,image/png,image/webp"
                       className="hidden"
                       disabled={!needsOct}
-                      onChange={(e) => onFileChange("oct", e.target.files?.[0] ?? null)}
+                      onChange={(e) => onOctUpload(e.target.files?.[0] ?? null)}
                     />
                   </label>
                   <button
                     type="button"
                     disabled={!needsOct}
-                    onClick={() => selectDemo("oct")}
+                    onClick={selectDemoOctSingle}
                     className="text-ink-muted underline underline-offset-4 hover:text-ink disabled:opacity-40"
                   >
-                    Select demo
+                    Demo (1 slice)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!needsOct}
+                    onClick={selectDemoOctVolume}
+                    className="text-ink-muted underline underline-offset-4 hover:text-ink disabled:opacity-40"
+                  >
+                    Demo (real 8-slice volume)
                   </button>
                 </div>
+                {octMode && (
+                  <button type="button" onClick={resetOct} className="text-[10px] text-ink-faint hover:text-ink-muted">
+                    clear
+                  </button>
+                )}
               </div>
             </div>
 
@@ -269,9 +356,7 @@ export default function DemoPage() {
 
                 <p className="mt-6 text-xs text-ink-faint">
                   {result.inference_time_ms.toFixed(1)}ms inference · model {result.model_version}
-                  {result.oct_repeated_single_slice && (
-                    <> · single OCT image repeated across the model&apos;s expected slice sequence</>
-                  )}
+                  {octModeCaption[result.oct_mode] && <> · {octModeCaption[result.oct_mode]}</>}
                 </p>
               </div>
             )}

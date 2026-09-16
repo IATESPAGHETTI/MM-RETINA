@@ -7,6 +7,16 @@ model architecture — `inference.py` imports directly from
 `../training/data.py` (transforms, class names) and `../training/evaluate.py`
 (checkpoint loading), the same code the CV/single-split experiments used.
 
+**These are not the 5-fold CV checkpoints.** This service serves
+`fundus_run1.pt`/`oct_run1.pt`/`fusion_run1.pt`, the demonstration
+checkpoints from the earlier single-split experiments (`EXPERIMENTS.md`).
+The performance numbers on the website's `/results` page come from a
+*separate* 5-fold cross-validation experiment (`training/cross_validate.py`,
+`results/cv/`) whose 15 fold checkpoints were intentionally not retained
+(see `--keep-checkpoints` in that script if you want to change that). Do
+not present a live-demo prediction as evidence for the CV metrics, or vice
+versa — they're different trained instances of the same architecture.
+
 ## Setup
 
 ```bash
