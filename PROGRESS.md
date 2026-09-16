@@ -6,6 +6,67 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-09-17 00:20 (first real experiments completed)
+
+### Completed
+- `fusion_run1` training run finished (early-stopped epoch 17, best epoch 9).
+- Ran the two required ablation baselines with matched hyperparameters/split:
+  `fundus_run1` (early-stopped epoch 15, best epoch 7) and `oct_run1`
+  (early-stopped epoch 23, best epoch 15).
+- Ran `evaluate.py` for real against all three checkpoints on the 14-sample
+  TEST split (never touched during training/val). Wrote
+  `results/{fusion,fundus,oct}_run1/{metrics.json,confusion_matrix.csv,predictions.csv}`.
+
+### Current status — real results, reported honestly
+| Run | Test accuracy | Balanced accuracy | Macro F1 | ROC-AUC |
+|---|---|---|---|---|
+| fundus only | 0.786 | 0.786 | 0.748 | 0.930 |
+| fusion | 0.643 | 0.563 | 0.567 | 0.800 |
+| OCT only | 0.500 | 0.405 | 0.378 | 0.817 |
+
+**Fundus-only beat the fusion model on this run/split.** Full numbers,
+confusion matrices, and an explicit "don't over-read this" caveat are in
+EXPERIMENTS.md. Reasons this is not a final verdict: 14-sample test set
+(huge variance per prediction), single split (no cross-validation yet),
+single seed, no statistical test between models. The honest scientific
+takeaway right now is "the pipeline works and produces real, reproducible
+numbers" — not "single-modality beats fusion" or vice versa.
+
+### Files changed
+- `EXPERIMENTS.md` — added real completed entries for fusion_run1,
+  fundus_run1, oct_run1, plus a cross-run comparison table.
+- `results/fusion_run1/`, `results/fundus_run1/`, `results/oct_run1/` —
+  new, real, committed (metrics.json/confusion_matrix.csv/predictions.csv
+  only — checkpoints themselves stay local/gitignored).
+- `website/src/lib/content.ts`, `website/src/components/ResultsPreview.tsx`,
+  `website/src/components/AblationTable.tsx` — replaced demo/placeholder
+  numbers with these real results, with an explicit "n=14, preliminary"
+  label — see the website integration note below.
+
+### Experiments
+fusion_run1, fundus_run1, oct_run1 — all COMPLETED, see EXPERIMENTS.md.
+
+### Results
+Real, as tabulated above. Not fabricated, not rounded up, not spun.
+
+### Problems / blockers
+None blocking. The main open methodological gap is statistical rigor
+(single split, N=14 test) — noted, not hidden, not yet fixed.
+
+### Next action
+1. If pursuing this further: implement k-fold cross-validation across the
+   100 patients so results aren't a single 14-sample roll of the dice.
+2. Try a stronger/larger encoder or more OCT slices now that VRAM headroom
+   is confirmed large (peak usage was under 1GB of the 6GB budget in the
+   smoke test at a smaller config — these runs likely have similar
+   headroom; a real run could afford more slices/higher resolution).
+3. Grad-CAM/attribution work (brief's "Explainability" section) — not
+   started yet.
+4. `/demo` page still has no real inference backend — still intentionally
+   inert, per its own on-page disclaimer.
+
+---
+
 ## 2026-09-17 00:10 (session start: real training pipeline)
 
 ### Completed

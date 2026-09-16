@@ -1,12 +1,19 @@
 /**
- * Central content store. Two categories, kept structurally separate so no
- * component can accidentally present one as the other:
+ * Central content store. Three categories, kept structurally separate so no
+ * component can accidentally present one as another:
  *
  *  - VERIFIED_* : facts about the GAMMA/GRAPE datasets, sourced from the
  *    official dataset cards / papers (see dataset/README.md in the repo root).
- *  - DEMO_* : placeholder numbers for UI layout only. Every consumer of
- *    DEMO_* data must render the `isDemo` flag as a visible label —
- *    never let a demo number appear unlabeled.
+ *  - REAL_RESULTS : actual metrics from actual `evaluate.py` runs against
+ *    real trained checkpoints on the real held-out test split. Copied
+ *    verbatim from ../../results/*\/metrics.json and EXPERIMENTS.md —
+ *    never rounded up, adjusted, or "cleaned up". Every consumer must
+ *    render `REAL_RESULTS.caveat` visibly, since the test set is only 14
+ *    samples from a single split (see EXPERIMENTS.md for why that matters).
+ *  - DEMO_* : placeholder numbers for UI layout only, for things that
+ *    genuinely have no real output yet (e.g. the live /demo inference
+ *    button). Every consumer of DEMO_* data must render the `isDemo` flag
+ *    as a visible label — never let a demo number appear unlabeled.
  */
 
 export const NAV_LINKS = [
@@ -55,29 +62,58 @@ export const VERIFIED_GRAPE_FACTS = {
   modalities: ["Clinical information", "Visual field values", "Fundus photographs", "IOP", "OCT measurements"],
 } as const;
 
-/** All numbers below are illustrative UI placeholders, not experimental results. */
-export const DEMO_METRICS = {
-  isDemo: true,
-  label: "Example values — no model has been trained yet",
-  grade: "Progressive",
-  confidence: 92.8,
-  branchConfidence: { oct: 88, fundus: 90, fusion: 93 },
-  metrics: [
-    { name: "AUROC", value: "—" },
-    { name: "Macro F1", value: "—" },
-    { name: "Sensitivity", value: "—" },
-    { name: "Specificity", value: "—" },
-    { name: "ECE", value: "—" },
+/**
+ * Real results from the first three training runs (2026-09-17), evaluated
+ * on the real 14-sample GAMMA test split. See EXPERIMENTS.md at the repo
+ * root for the full methodology, hyperparameters, and confusion matrices.
+ */
+export const REAL_RESULTS = {
+  caveat:
+    "Preliminary — a single 14-sample test split, one run each, no cross-validation yet. Differences this small are not statistically meaningful; see EXPERIMENTS.md.",
+  testSetSize: 14,
+  runs: [
+    {
+      name: "Fundus only",
+      accuracy: 0.786,
+      balancedAccuracy: 0.786,
+      macroF1: 0.748,
+      rocAuc: 0.93,
+    },
+    {
+      name: "Fusion (fundus + OCT)",
+      accuracy: 0.643,
+      balancedAccuracy: 0.563,
+      macroF1: 0.567,
+      rocAuc: 0.8,
+    },
+    {
+      name: "OCT only",
+      accuracy: 0.5,
+      balancedAccuracy: 0.405,
+      macroF1: 0.378,
+      rocAuc: 0.817,
+    },
   ],
+  /** One real prediction from fusion_run1/predictions.csv (test sample
+   * 0058, GAMMA training split) — a genuine correct prediction with its
+   * actual softmax confidence, not a cherry-picked high number. */
+  exampleInference: {
+    sampleId: "0058",
+    trueLabel: "Progressive",
+    predictedLabel: "Progressive",
+    confidence: 49.1,
+    probNormal: 8.8,
+    probEarly: 42.1,
+    probProgressive: 49.1,
+  },
 } as const;
 
-export const DEMO_ABLATION_ROWS = [
-  { model: "OCT baseline", auroc: "—", f1: "—" },
-  { model: "OCT + Fundus (concat)", auroc: "—", f1: "—" },
-  { model: "Concatenation fusion", auroc: "—", f1: "—" },
-  { model: "Cross-attention fusion", auroc: "—", f1: "—" },
-  { model: "Final model", auroc: "—", f1: "—" },
-] as const;
+/** Placeholder for the still-unimplemented live /demo inference endpoint —
+ * not the same thing as REAL_RESULTS above, which came from actual runs. */
+export const DEMO_METRICS = {
+  isDemo: true,
+  label: "Illustrative only — the /demo page has no live inference backend",
+} as const;
 
 export const RESEARCH_INTEGRITY_POINTS = [
   "Patient-level splitting — no patient's data crosses train/val/test.",
