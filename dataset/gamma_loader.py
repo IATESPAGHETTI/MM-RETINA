@@ -117,8 +117,8 @@ def load_from_official_layout(training_root: str | Path) -> list[GammaSample]:
                 # kept as its own field rather than assumed identical to
                 # sample_id, since the audit still checks this explicitly.
                 patient_id=sample_id,
-                fundus_path=str(fundus_path),
-                oct_dir=str(oct_dir),
+                fundus_path=str(fundus_path.resolve()),
+                oct_dir=str(oct_dir.resolve()),
                 num_bscans=num_bscans,
                 grade=grade,
                 grade_index=GRADE_MAP.get(grade, -1),
