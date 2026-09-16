@@ -27,9 +27,9 @@ description — do not inflate or round these differently in the report/website)
   fundus+volume pairs yourself; do not train sample-level splits on the raw
   row count or you will leak patients across train/val/test.
 
-## Current status: the real dataset is being downloaded locally
+## Current status: training split fully synced and audited
 
-A git-lfs clone of the official GAMMA layout now lives at `GAMMA/` in this
+A git-lfs clone of the official GAMMA layout lives at `GAMMA/` in this
 folder (gitignored — see below). It has the real structure, verified by
 inspection rather than guessed:
 
@@ -38,9 +38,10 @@ GAMMA/grading/Glaucoma_grading/
   License-GAMMA_1019.pdf
   training/
     glaucoma_grading_training_GT.xlsx   — columns: data, non, early, mid_advanced
-    multi-modality_images/<id>/<id>.jpg              — fundus photo
+    multi-modality_images/<id>/<id>.jpg          — fundus photo
+    multi-modality_images/<id>/<id>/<n>_image.jpg — real per-slice B-scans (n = 0..255)
     multi-modality_images/<id>/<id>_Sequence/
-        <id>_Sequence_OCT_Iowa.mhd + .raw            — the OCT volume (512x992x256 uint8)
+        <id>_Sequence_OCT_Iowa.mhd + .raw            — the same volume, ITK format
   testing/
     multi-modality_images/...   — no labels shipped (challenge leaderboard holdout)
 ```
@@ -48,19 +49,32 @@ GAMMA/grading/Glaucoma_grading/
 `<id>` is the sample number zero-padded to 4 digits. Only the `training`
 split (100 samples) ships grades — `non`/`early`/`mid_advanced` are one-hot
 columns mapping to Normal/Early/Progressive. `gamma_loader.py` was
-originally written against a guessed schema before this real structure was
-known; it's now been corrected to match the structure above exactly (see
-`load_from_official_layout`).
+originally written against a guessed schema before any real data existed;
+it's now corrected against the structure above.
 
-As of this writing the LFS pull is incomplete: sample 0001 has its OCT
-volume synced, the rest mostly have their fundus JPEG but not yet the
-`_Sequence/*.raw` volume. The loader reports these as "missing", not
-fabricated — rerun it as more of the clone finishes syncing.
+**All 100 training samples are fully synced.** Running
 
-This dev environment has no bandwidth/storage budget to drive that full
-13GB pull itself, and pulling it also required accepting GAMMA's license
-terms on the official challenge page first (already done, since the clone
-exists) — that's a step you did, not something this session automated.
+```bash
+python gamma_loader.py --root GAMMA/grading/Glaucoma_grading/training --out gamma_manifest.json
+python gamma_audit.py --manifest gamma_manifest.json --out audit_report.json
+```
+
+gives a clean bill of health:
+
+- 100/100 samples loaded, 0 missing fundus or OCT files
+- 100 unique patients — **no bilateral/repeat entries in this split**, so a
+  patient-level split here is equivalent to a sample-level split (still use
+  `gamma_audit.py`'s split proposal for reproducibility/seeding, not because
+  leakage is otherwise possible)
+- Every volume has exactly 256 B-scans, no exceptions
+- Class distribution: 50 normal / 26 early / 24 progressive — matches the
+  dataset card's stated ~52%/~48% early/progressive split of the glaucoma
+  half almost exactly
+- Two fundus resolutions in the wild: 1956x1934 (6 samples) and 2992x2000
+  (94 samples) — resize to a common size before batching for training
+
+The `testing` split (samples 0101+) has no labels — it's the challenge's
+held-out leaderboard set, not usable for your own supervised splits.
 
 ## Files
 
@@ -71,8 +85,10 @@ exists) — that's a step you did, not something this session automated.
   patient counts, class balance, B-scan counts per volume, image dims,
   missing/duplicate files, laterality) and writes `audit_report.json`.
 - `extract_oct_slices.py` — reads a sample's `.mhd`/`.raw` OCT volume and
-  writes each B-scan out as a JPEG (used to populate
-  `../website/public/oct-volume/<id>/` for the site's interactive viewer).
+  writes each B-scan out as a JPEG. Not needed for the loader above (which
+  uses the dataset's own pre-extracted `<n>_image.jpg` files directly), but
+  useful if you ever need the ITK volume's exact voxel spacing/orientation
+  metadata that the flat JPEGs don't carry.
 
 ## Patient-level splitting
 
