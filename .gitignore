@@ -17,6 +17,13 @@ __pycache__/
 .venv/
 venv/
 
+# Trained model checkpoints and raw run logs — large/derived, not source.
+# Real results (metrics.json/confusion_matrix.csv/predictions.csv) under
+# results/ ARE tracked once they exist, since those are small text summaries
+# of an actual run, not weights.
+training/checkpoints/
+*.log
+
 # Node / Next.js (website/)
 node_modules/
 .next/
