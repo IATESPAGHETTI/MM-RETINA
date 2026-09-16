@@ -8,24 +8,27 @@ CSS v4 + Framer Motion.
 
 ```bash
 npm install
+cp .env.local.example .env.local   # points the site at the inference backend
 npm run dev
 ```
 
-Then open http://localhost:3000.
+Then open http://localhost:3000. For `/demo` to actually run inference,
+also start the backend — see `../backend/README.md`.
 
 ## Structure
 
 - `src/app/` — pages: `/` (landing), `/model`, `/dataset`, `/results`, `/research`, `/about`, `/demo`.
 - `src/components/` — `Navbar`, `Hero`, `WhyMultimodal`, `ArchitecturePipeline`
   (animated SVG pipeline diagram), `OCTViewer` (real, interactive B-scan
-  slider — see below), `DatasetFacts`, `ResultsPreview`, `AblationTable`,
+  slider), `DatasetFacts`, `ResultsPreview`, `AblationTable`,
   `ResearchIntegrity`, `GlassCard`, `Reveal` (scroll-triggered motion
   wrapper), `DemoBadge`.
-- `src/lib/content.ts` — the single source of truth for page copy, split into
-  `VERIFIED_*` (sourced from the official GAMMA/GRAPE dataset cards — see
-  `../dataset/README.md`) and `DEMO_*` (UI placeholder values). Every
-  `DEMO_*` consumer must render a visible "demo" label — never let a
-  placeholder number appear unlabeled.
+- `src/lib/content.ts` — the single source of truth for page copy:
+  `VERIFIED_*` (official GAMMA/GRAPE dataset facts), `CV_RESULTS` (real
+  5-fold cross-validation metrics, copied verbatim from
+  `../results/cv/summary.json`), `SINGLE_SPLIT_HISTORY` (the qualitative
+  story of the earlier, superseded single-split experiment). There is no
+  static demo-prediction data anymore — `/demo` calls the real backend.
 
 ## Design language
 
@@ -33,8 +36,7 @@ Then open http://localhost:3000.
 accents (see `src/app/globals.css` for the `--bg`, `--accent-champagne`,
 `--accent-olive`, `--accent-copper` tokens). Glass (`.glass` / `.glass-strong`)
 is reserved for the floating navbar and small status overlays, not general
-section backgrounds — most content sits directly on the page. Respects
-`prefers-reduced-motion`.
+section backgrounds. Respects `prefers-reduced-motion`.
 
 ## Real imagery
 
@@ -44,39 +46,33 @@ CC BY-NC-ND terms — see `../dataset/README.md` for the full license/citation.
 
 - `public/samples/gamma-0001-fundus.jpg` — the real color fundus photograph.
 - `public/oct-volume/0001/000.jpg` … `255.jpg` — all 256 real B-scans from
-  that sample's actual OCT volume, extracted from the official `.mhd`/`.raw`
-  format via `../dataset/extract_oct_slices.py` (downscaled to 320px wide,
-  ~9MB total). `OCTViewer.tsx` serves these directly as static files and
-  only ever fetches the current slice plus a small prefetch window — never
-  the whole volume at once.
+  that sample's actual OCT volume (used by `OCTViewer.tsx` on `/model`,
+  lazy-loaded — only the current slice plus a small prefetch window, never
+  the whole volume at once).
+- `public/demo/fundus/gamma-0001.jpg` and `public/demo/oct/gamma-0001-slice128.jpg`
+  — copies of the same real, matched pair, used as the "Select demo" option
+  on `/demo`. See `../demo_images/` for provenance notes.
 
-Both came from a git-lfs clone of the official GAMMA "training" split at
-`../dataset/GAMMA/` (gitignored, not part of this repo — see that folder's
-README for the verified real directory layout, which turned out to differ
-from what `gamma_loader.py` originally assumed).
+## What's real vs. what to know about
 
-## What's real vs. placeholder right now
+- Dataset facts are sourced from the official GAMMA dataset card/paper.
+- `/results` shows real 5-fold cross-validation metrics (15 total training
+  runs — see `../EXPERIMENTS.md`), not placeholders. An earlier single-split
+  experiment's numbers are intentionally not redisplayed (see
+  `SINGLE_SPLIT_HISTORY` in content.ts for why) but remain in
+  `EXPERIMENTS.md`/git history.
+- `/demo` calls a real FastAPI backend (`../backend/`) running the actual
+  trained checkpoints. It is not mocked — if the backend is down, the page
+  says so and disables the run button rather than faking a result.
+- The live demo's OCT path has one known, disclosed limitation: it accepts
+  a single OCT image and repeats it across the model's expected 8-slice
+  input (the model was trained on 8 real slices per volume). See
+  `../backend/README.md`.
 
-- Dataset facts (sample counts, license, acquisition devices) are sourced
-  from the official GAMMA dataset card and paper — see `../dataset/README.md`.
-- The fundus photo and every OCT B-scan are real (see above) — nothing about
-  the retinal imagery is simulated.
-- Every metric on `/results` and the prediction readout on `/` and `/results`
-  is a UI placeholder, explicitly labeled. No model has been trained on
-  GAMMA in this repo yet.
-- `/demo` is a static UI mock — it does not call any inference backend
-  (none exists yet) and explicitly refuses to show a "prediction" when you
-  interact with it, rather than faking one.
+## Next steps if extending this
 
-## Wiring in real results later
-
-Once you've trained a model (see `../Adv_prj4/` for the cross-attention
-fusion architecture) and have real metrics:
-
-1. Replace the `DEMO_METRICS` / `DEMO_ABLATION_ROWS` objects in
-   `src/lib/content.ts` with real numbers, and drop the `isDemo`/`DemoBadge`
-   usage at each call site once the data is real.
-2. For `/demo` to actually run inference, add a route handler (e.g.
-   `src/app/api/predict/route.ts`) that proxies to a Python inference
-   service (FastAPI + the trained Keras model), and replace the disabled
-   "Run inference" button's `disabled` state with a real fetch call.
+1. Grad-CAM/attribution visualization for `/demo` (not implemented yet).
+2. Accept multiple OCT slice uploads instead of repeating one image.
+3. k-fold-aware statistical significance testing between modalities
+   (currently just mean±std, no paired test) — see `PROGRESS.md` at the
+   repo root.
