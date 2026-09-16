@@ -6,6 +6,92 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-09-17 02:35 (website updated with CV results; live demo backend built)
+
+### Completed
+- Updated `/results` to show the real 5-fold CV numbers (mean±std, all
+  four metrics, all three modalities) instead of the old single-split
+  numbers. Old numbers are NOT displayed anywhere on the page anymore
+  (still fully preserved in EXPERIMENTS.md/git history). Added the
+  required interpretation wording and a "why cross-validation" section.
+- Built `backend/` — a FastAPI service (`app.py` + a thin `inference.py`
+  wrapper) that loads the real `fundus_run1.pt`/`oct_run1.pt`/`fusion_run1.pt`
+  checkpoints once at startup and serves `POST /api/predict` +
+  `GET /api/health`. Reuses `training/data.py`'s transforms and
+  `training/evaluate.py`'s checkpoint loader directly — no duplicated
+  preprocessing/model code.
+- Rewrote `/demo` to actually call this backend: modality picker
+  (fundus/OCT/fusion), upload or "select demo" (real GAMMA sample 0001
+  images, copied into `website/public/demo/`), real prediction + per-class
+  probabilities + inference timing rendered from the actual API response.
+  Backend-offline and validation-error states are handled and were tested.
+- Created `demo_images/` (fundus/oct/fusion READMEs documenting provenance
+  — Next.js serves the actual files from `website/public/demo/` instead,
+  since it can't serve outside `public/`).
+- `.env.example` (backend) / `.env.local.example` (website) added; both
+  `.gitignore`s patched so `.env*.example` isn't swept up by the `.env*`
+  rule that (correctly) keeps real `.env` files out of git.
+- Removed `DemoBadge.tsx` — dead code once `/demo` and `/results` stopped
+  needing a "this is fake" label.
+
+### Real end-to-end testing actually performed
+Backend, via curl, against real images:
+- `GET /api/health` — reports `{"models_loaded": ["fundus","fusion","oct"]}`.
+- `POST /api/predict` fundus-only on the real GAMMA-0001 fundus photo:
+  succeeded, prediction=normal.
+- `POST /api/predict` oct-only on a real B-scan: **failed on first try**
+  (real bug — see below), then succeeded after the fix.
+- `POST /api/predict` fusion on the real matched pair: succeeded,
+  prediction=normal, 63ms inference.
+- Validation: missing required image → 400; invalid modality → 400;
+  corrupt/non-image upload → 400; unsupported content-type → 400. All
+  return clean JSON errors, no stack traces.
+- Model-loading failure: renamed `oct_run1.pt` away, restarted the
+  server — `/api/health` correctly showed the load error and
+  `/api/predict` for that modality returned 503, not a fake result.
+  Checkpoint restored afterward.
+
+Frontend, via the actual running Next.js dev server in a real browser
+(not just curl): loaded `/demo`, confirmed "Backend online" status,
+clicked "Select demo" for both images, clicked "Run analysis", and got
+back the SAME real prediction the curl test produced (normal, 73.9%
+confidence) rendered in the UI. Also killed the backend and reloaded —
+confirmed the "Backend unreachable" state shows and the Run button
+disables, rather than the page pretending to work.
+
+### Real bug found and fixed during this work
+`app.py` was force-converting every upload to RGB before handing it to
+`inference.py`. OCT B-scans need grayscale (matching how
+`training/data.py` loads them during training) — the mismatch produced a
+3-channel tensor into a 1-channel-expecting conv layer and crashed with a
+clear PyTorch shape error. Fixed by deferring color-mode conversion to
+`inference.py` (RGB for fundus, `L` for OCT), matching `data.py` exactly.
+
+### Files changed
+See the commit for the full list; summary: `backend/` (new: app.py,
+inference.py, requirements.txt, README.md, .env.example), `demo_images/`
+(new), `website/public/demo/` (new — 2 real image files),
+`website/.env.local.example` (new), `website/src/app/demo/page.tsx`
+(rewritten), `website/src/app/results/page.tsx`,
+`website/src/components/{AblationTable,ResultsPreview}.tsx`,
+`website/src/lib/content.ts` (CV_RESULTS replaces the old single-split
+REAL_RESULTS), `website/src/components/DemoBadge.tsx` (deleted, dead
+code), `.gitignore` / `website/.gitignore` (env-example exception).
+
+### Problems / blockers
+None remaining. The OCT-grayscale bug above was caught by actually
+running the intended test (not by inspection) and fixed before commit.
+
+### Next action
+1. Grad-CAM/attribution for the demo (still not implemented — see the
+   backend README's "what's NOT implemented" section).
+2. Accept multiple OCT slice uploads instead of repeating one image.
+3. Consider a Dockerfile for the backend if deployment beyond localhost
+   is ever needed (discussed with the user, deferred as unnecessary for
+   now).
+
+---
+
 ## 2026-09-17 01:47 (5-fold cross-validation: COMPLETED, real results)
 
 ### Completed
