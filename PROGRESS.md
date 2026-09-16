@@ -6,6 +6,69 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-09-17 01:47 (5-fold cross-validation: COMPLETED, real results)
+
+### Completed
+All 15 CV runs (5 folds x {fundus, oct, fusion}) finished successfully,
+~50 minutes total wall time. Aggregated into `results/cv/summary.json`.
+Full per-fold table and aggregate mean±std written to EXPERIMENTS.md
+under `cv-run-1` — nothing here is estimated, all copied from real
+metrics.json / summary.json files.
+
+### Current status — real, cross-validated results
+| Modality | Accuracy | Balanced accuracy | Macro F1 | ROC-AUC |
+|---|---|---|---|---|
+| Fundus only | 0.730 ± 0.156 | 0.697 ± 0.173 | 0.682 ± 0.183 | 0.876 ± 0.086 |
+| OCT only | 0.661 ± 0.089 | 0.599 ± 0.076 | 0.587 ± 0.090 | 0.842 ± 0.041 |
+| Fusion | 0.710 ± 0.052 | 0.644 ± 0.058 | 0.636 ± 0.061 | **0.892 ± 0.035** |
+
+This changes the picture from the single-split result. Fundus's higher
+mean accuracy is driven almost entirely by one fold where it scored a
+perfect 1.000 (real, not an error) — its variance across folds (std up to
+0.183) is far higher than fusion's (std 0.052-0.061 on every metric).
+Fusion has the highest mean ROC-AUC and is clearly the most consistent
+model fold-to-fold. This is a genuinely more defensible finding than
+"fundus beats fusion" from the single 14-sample test split.
+
+### Files changed
+- `EXPERIMENTS.md` — `cv-run-1` completed with full per-fold table +
+  aggregate + honest interpretation.
+- `PROGRESS.md` — this entry.
+- `results/cv/` — 15 real fold results (metrics.json/confusion_matrix.csv/
+  predictions.csv each) + summary.json. Not yet committed as of this
+  entry — see Next action.
+- Website: **still not touched**, per instruction. A decision on whether/
+  how to reflect the CV numbers (vs. the current single-split numbers
+  already on `/results`) is the user's call, not made unilaterally here.
+
+### Experiments
+`cv-run-1` — COMPLETED. See EXPERIMENTS.md for full detail.
+
+### Results
+Real, tabulated above and in EXPERIMENTS.md. All 15 individual fold
+results are on disk under `results/cv/` for inspection.
+
+### Problems / blockers
+None. All 15 runs completed with exit code 0, no crashes, no missing
+metrics. GPU was underutilized during the run (9-60%, ~1.8/6GB) because
+`--workers 0` makes data loading synchronous — noted as a real
+inefficiency for next time (`--workers 4+`), not a correctness problem.
+
+### Next action
+1. Commit `results/cv/` (15 fold results + summary.json) and the
+   EXPERIMENTS.md/PROGRESS.md updates.
+2. Ask the user whether to update the website's `/results` page to show
+   the cross-validated numbers (mean±std, 5 folds) instead of / alongside
+   the single-split numbers currently there — this is a presentation
+   decision, not something to change without asking, per "do not modify
+   website metrics until CV results are actually generated" (they now
+   are, but that instruction didn't authorize an unprompted website edit).
+3. If pursuing further rigor: a paired statistical test (e.g. fold-wise
+   paired t-test) between fusion and fundus-only on accuracy, since eyeballing
+   overlapping std ranges isn't a real significance test.
+
+---
+
 ## 2026-09-17 01:15 (5-fold cross-validation: implemented, smoke-tested, launched)
 
 ### Completed

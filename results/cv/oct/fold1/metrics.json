@@ -1,0 +1,34 @@
+{
+  "modality": "oct",
+  "fold": 1,
+  "best_epoch": 10,
+  "best_val_loss": 0.7281499743461609,
+  "train_seconds": 169.5393636226654,
+  "metrics": {
+    "num_test_samples": 20,
+    "accuracy": 0.65,
+    "balanced_accuracy": 0.5666666666666668,
+    "macro_f1": 0.506265664160401,
+    "per_class": {
+      "normal": {
+        "precision": 1.0,
+        "recall": 0.9,
+        "f1": 0.9473684210526315,
+        "support": 10
+      },
+      "early": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 5
+      },
+      "progressive": {
+        "precision": 0.4444444444444444,
+        "recall": 0.8,
+        "f1": 0.5714285714285714,
+        "support": 5
+      }
+    },
+    "roc_auc_ovr_macro": 0.84
+  }
+}
