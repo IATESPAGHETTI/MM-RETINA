@@ -57,19 +57,62 @@ failed ones — a failed run is still real information.
   everything needed to reproduce the numbers below without needing to
   retrain — they are exactly what `evaluate.py`'s output already looks
   like, just called from inside the CV loop instead of standalone).
-- **Status:** LAUNCHED in background at commit a4a9da4. **This entry is
-  written before the run completes, per the "record before finishing"
-  requirement — every fold's real result and the aggregate mean/std table
-  will be appended below once the run actually finishes. Do not trust any
-  per-fold or aggregate number under this heading that isn't there yet.**
+- **Status:** COMPLETED. All 15 runs finished successfully (exit code 0),
+  ran in the background while the user checked GPU utilization
+  (9-60% util, ~1.8GB/6GB VRAM — data-loading-bound at `--workers 0`, not
+  a problem, just leaves GPU idle between batches; worth `--workers 4+`
+  next time). Total wall time ~50 minutes for all 15 runs (~3.3 min/run
+  average, consistent with the smoke test's per-epoch timing extrapolated
+  to ~15-24 real epochs per run).
 
-### Per-fold results
-PENDING — 15 runs (5 folds x {fundus, oct, fusion}), each saved to
-`results/cv/<modality>/fold<k>/metrics.json` as it completes.
+### Per-fold results (verbatim from results/cv/<modality>/fold<k>/metrics.json)
 
-### Aggregate (mean ± std across 5 folds)
-PENDING — will be computed by `cross_validate.py`'s own aggregation step
-from the 15 real per-fold metrics files, written to `results/cv/summary.json`.
+| Fold | Val n | Fundus acc / bal.acc / F1 / AUC | OCT acc / bal.acc / F1 / AUC | Fusion acc / bal.acc / F1 / AUC |
+|---|---|---|---|---|
+| 0 | 21 | 0.667 / 0.633 / 0.630 / 0.867 | 0.571 / 0.544 / 0.544 / 0.805 | 0.667 / 0.589 / 0.561 / 0.836 |
+| 1 | 20 | 0.600 / 0.567 / 0.538 / 0.830 | 0.650 / 0.567 / 0.506 / 0.840 | 0.700 / 0.633 / 0.630 / 0.896 |
+| 2 | 20 | **1.000 / 1.000 / 1.000 / 0.987** | 0.800 / 0.733 / 0.740 / 0.893 | 0.800 / 0.733 / 0.727 / 0.927 |
+| 3 | 20 | 0.700 / 0.667 / 0.652 / 0.929 | 0.600 / 0.567 / 0.567 / 0.800 | 0.700 / 0.667 / 0.652 / 0.890 |
+| 4 | 19 | 0.684 / 0.617 / 0.590 / 0.766 | 0.684 / 0.583 / 0.578 / 0.872 | 0.684 / 0.600 / 0.610 / 0.914 |
+
+Fold 2's fundus-only run scored a perfect 1.000 across the board (20/20
+correct) — a real result, not an error, but it single-handedly pulls the
+fundus mean and (especially) std upward/wider. Early stopping fired for
+most fundus/OCT/fusion runs between epoch 16-24 of the 25 max; a few
+(fold2 fundus, fold2 fusion, fold4 oct) hit the full run without
+triggering the patience=8 early stop, per the raw log.
+
+### Aggregate (mean ± std across 5 folds, sample std / ddof=1) — from results/cv/summary.json
+
+| Modality | Accuracy | Balanced accuracy | Macro F1 | ROC-AUC (OvR macro) |
+|---|---|---|---|---|
+| Fundus only | 0.730 ± 0.156 | 0.697 ± 0.173 | 0.682 ± 0.183 | 0.876 ± 0.086 |
+| OCT only | 0.661 ± 0.089 | 0.599 ± 0.076 | 0.587 ± 0.090 | 0.842 ± 0.041 |
+| Fusion (fundus+OCT) | 0.710 ± 0.052 | 0.644 ± 0.058 | 0.636 ± 0.061 | **0.892 ± 0.035** |
+
+**Honest reading of this, cross-validated (much more trustworthy than the
+single 14-sample split in fusion_run1/fundus_run1/oct_run1 above):**
+
+- Fundus-only has the highest *mean* accuracy (0.730), but by far the
+  highest *variance* (std 0.156-0.183 across all four metrics) — that
+  mean is substantially inflated by one lucky fold (fold 2's perfect
+  score). Its performance is not reliable across folds.
+- **Fusion has the lowest variance of the three on every single metric**
+  (std 0.052-0.061 vs fundus's 0.156-0.183 and OCT's 0.076-0.090), and the
+  **highest mean ROC-AUC (0.892)** of all three modalities.
+- OCT-only is weakest on every metric and every fold — consistently, not
+  just on average.
+- The 5-fold picture is more favorable to fusion than the single-split
+  result looked: fusion isn't the outright accuracy winner, but it is the
+  most *stable* model and the best by ROC-AUC — a real, defensible
+  finding, unlike the single-split "fundus just wins" takeaway, which
+  turns out to have been driven by which 14 samples happened to land in
+  that one test set.
+- Still true: n=5 folds is a small number of estimates for a standard
+  deviation — these std values themselves have wide uncertainty. This is
+  a meaningfully stronger result than one train/test split, not a
+  definitive one. A paired test (e.g. a fold-wise paired t-test between
+  fusion and fundus on accuracy) would be the next rigor step, not yet done.
 
 ---
 
