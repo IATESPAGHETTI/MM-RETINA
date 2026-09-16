@@ -46,27 +46,23 @@ def _infer_patient_id(sample_id: str) -> str:
     return m.group(1) if m else sample_id
 
 
-def _parse_mhd_dim_size(mhd_path: Path) -> tuple[int, int, int] | None:
-    """Reads DimSize (width height depth) out of an ITK .mhd header."""
-    for line in mhd_path.read_text().splitlines():
-        if line.strip().startswith("DimSize"):
-            _, val = line.split("=", 1)
-            w, h, d = (int(x) for x in val.split())
-            return w, h, d
-    return None
-
-
 def load_from_official_layout(training_root: str | Path) -> list[GammaSample]:
     """Loads the REAL official GAMMA "training" split layout (verified by
     inspecting an actual challenge download, not guessed):
 
         training_root/
           glaucoma_grading_training_GT.xlsx   — columns: data, non, early, mid_advanced
-          multi-modality_images/<id>/<id>.jpg            — fundus photo
-          multi-modality_images/<id>/<id>_Sequence/
-              <id>_Sequence_OCT_Iowa.mhd + .raw           — the OCT volume
+          multi-modality_images/<id>/<id>.jpg           — fundus photo
+          multi-modality_images/<id>/<id>/<n>_image.jpg — real per-slice B-scans,
+                                                            n = 0..255
 
-    <id> is the sample number zero-padded to 4 digits (e.g. "0001").
+    <id> is the sample number zero-padded to 4 digits (e.g. "0001"). The
+    dataset also ships a `<id>_Sequence/*.mhd+.raw` ITK volume for the same
+    data (see `extract_oct_slices.py` if you ever need that form instead —
+    e.g. to get exact voxel spacing), but the pre-extracted per-slice JPEGs
+    above are what this loader and the website both use, since they need no
+    binary parsing and are what actually finished syncing first.
+
     `data` in the spreadsheet is that same integer id; `non`/`early`/
     `mid_advanced` are one-hot columns (Normal / Early / Progressive, where
     Progressive groups the challenge's Intermediate+Advanced grades).
@@ -106,15 +102,12 @@ def load_from_official_layout(training_root: str | Path) -> list[GammaSample]:
 
         sample_dir = images_root / sample_id
         fundus_path = sample_dir / f"{sample_id}.jpg"
-        oct_dir = sample_dir / f"{sample_id}_Sequence"
-        mhd_candidates = list(oct_dir.glob("*_OCT_Iowa.mhd"))
+        oct_dir = sample_dir / sample_id
+        num_bscans = len(list(oct_dir.glob("*_image.jpg"))) if oct_dir.exists() else 0
 
-        if not fundus_path.exists() or not mhd_candidates:
+        if not fundus_path.exists() or num_bscans == 0:
             missing.append(sample_id)
             continue
-
-        dims = _parse_mhd_dim_size(mhd_candidates[0])
-        num_bscans = dims[2] if dims else 0
 
         samples.append(
             GammaSample(
