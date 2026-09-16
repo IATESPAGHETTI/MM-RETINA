@@ -1,5 +1,6 @@
 import { ArchitecturePipeline } from "@/components/ArchitecturePipeline";
 import { WhyMultimodal } from "@/components/WhyMultimodal";
+import { OCTViewer } from "@/components/OCTViewer";
 import { Reveal } from "@/components/Reveal";
 
 export const metadata = { title: "Model — MM-RETINA" };
@@ -27,16 +28,32 @@ export default function ModelPage() {
 
       <section className="mx-auto max-w-3xl px-6 py-20">
         <Reveal>
+          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-ink-faint">Real OCT volume</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-ink">
+            256 B-scans. One eye. Drag through it.
+          </h2>
+          <p className="mt-3 max-w-lg text-ink-muted">
+            This is the actual OCT volume for GAMMA sample 0001 — not a
+            simulation. Scrub the slider, use the arrow keys, or press play.
+          </p>
+        </Reveal>
+        <Reveal delay={0.1} className="mx-auto mt-10 max-w-xs">
+          <OCTViewer sampleId="0001" numSlices={256} />
+        </Reveal>
+      </section>
+
+      <section className="mx-auto max-w-3xl px-6 py-20">
+        <Reveal>
           <h2 className="text-3xl font-semibold tracking-tight text-ink">OCT volume processing, in plain terms</h2>
         </Reveal>
         <Reveal delay={0.1}>
           <div className="mt-8 space-y-4 border-t border-white/10 pt-8 text-base leading-relaxed text-ink-muted">
             <p>
               An OCT scan isn&apos;t one photo — it&apos;s 256 thin cross-section
-              images (<span className="text-ink">B-scans</span>) stacked
-              together, like slicing through the retina layer by layer.
-              Feeding all 256 into a 3D network is memory-expensive, so
-              instead:
+              images (<span className="text-ink">B-scans</span>, like the ones
+              you just scrubbed through above) stacked together, like slicing
+              through the retina layer by layer. Feeding all 256 into a 3D
+              network is memory-expensive, so instead:
             </p>
             <ol className="list-decimal space-y-2 pl-5">
               <li>Every B-scan passes through the same shared 2D encoder (a &quot;2.5D&quot; approach).</li>

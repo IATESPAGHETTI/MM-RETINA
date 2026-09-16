@@ -8,6 +8,8 @@ audit_report.json
 # Actual GAMMA dataset clone(s) (license-restricted, huge, own git/LFS remote)
 Adv_prj4/GAMMA/
 /GAMMA/
+dataset/GAMMA/
+dataset/GAMMA_noxet/
 
 # Python
 __pycache__/

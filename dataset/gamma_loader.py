@@ -46,57 +46,95 @@ def _infer_patient_id(sample_id: str) -> str:
     return m.group(1) if m else sample_id
 
 
-def load_from_official_layout(root: str | Path) -> list[GammaSample]:
-    """Expects the structure documented in the GAMMA README:
+def _parse_mhd_dim_size(mhd_path: Path) -> tuple[int, int, int] | None:
+    """Reads DimSize (width height depth) out of an ITK .mhd header."""
+    for line in mhd_path.read_text().splitlines():
+        if line.strip().startswith("DimSize"):
+            _, val = line.split("=", 1)
+            w, h, d = (int(x) for x in val.split())
+            return w, h, d
+    return None
 
-        root/
-          images/fundus/sample_XXXX_fundus.jpg
-          images/oct/sample_XXXX_oct/*.jpg (256 B-scans)
-          labels/grades.csv   (sample_id, grade[, patient_id])
+
+def load_from_official_layout(training_root: str | Path) -> list[GammaSample]:
+    """Loads the REAL official GAMMA "training" split layout (verified by
+    inspecting an actual challenge download, not guessed):
+
+        training_root/
+          glaucoma_grading_training_GT.xlsx   — columns: data, non, early, mid_advanced
+          multi-modality_images/<id>/<id>.jpg            — fundus photo
+          multi-modality_images/<id>/<id>_Sequence/
+              <id>_Sequence_OCT_Iowa.mhd + .raw           — the OCT volume
+
+    <id> is the sample number zero-padded to 4 digits (e.g. "0001").
+    `data` in the spreadsheet is that same integer id; `non`/`early`/
+    `mid_advanced` are one-hot columns (Normal / Early / Progressive, where
+    Progressive groups the challenge's Intermediate+Advanced grades).
+
+    Only the "training" split ships labels — the "testing" split's grades
+    are held out by the challenge organizers for the leaderboard, so it
+    can't be used for a labeled sample here.
     """
-    root = Path(root)
-    grades_csv = root / "labels" / "grades.csv"
-    if not grades_csv.exists():
+    import pandas as pd
+
+    training_root = Path(training_root)
+    gt_path = training_root / "glaucoma_grading_training_GT.xlsx"
+    if not gt_path.exists():
         raise FileNotFoundError(
-            f"Expected {grades_csv} — this loader targets the official GAMMA "
-            "layout. If you're using the HF mirror instead, call "
-            "load_from_huggingface() below."
+            f"Expected {gt_path} — this loader targets the real GAMMA "
+            "'training' split layout. If you're using the HF mirror instead, "
+            "call load_from_huggingface() below."
         )
 
-    import csv
+    gt = pd.read_excel(gt_path)
+    images_root = training_root / "multi-modality_images"
 
     samples: list[GammaSample] = []
     missing: list[str] = []
 
-    with open(grades_csv, newline="", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            sample_id = row["sample_id"]
-            grade = row["grade"].strip().lower()
-            patient_id = row.get("patient_id") or _infer_patient_id(sample_id)
+    for _, row in gt.iterrows():
+        sample_id = f"{int(row['data']):04d}"
+        if row["non"] == 1:
+            grade = "normal"
+        elif row["early"] == 1:
+            grade = "early"
+        elif row["mid_advanced"] == 1:
+            grade = "progressive"
+        else:
+            missing.append(sample_id)
+            continue
 
-            fundus_path = root / "images" / "fundus" / f"sample_{sample_id}_fundus.jpg"
-            oct_dir = root / "images" / "oct" / f"sample_{sample_id}_oct"
+        sample_dir = images_root / sample_id
+        fundus_path = sample_dir / f"{sample_id}.jpg"
+        oct_dir = sample_dir / f"{sample_id}_Sequence"
+        mhd_candidates = list(oct_dir.glob("*_OCT_Iowa.mhd"))
 
-            if not fundus_path.exists() or not oct_dir.exists():
-                missing.append(sample_id)
-                continue
+        if not fundus_path.exists() or not mhd_candidates:
+            missing.append(sample_id)
+            continue
 
-            bscans = sorted(oct_dir.glob("*.jpg")) + sorted(oct_dir.glob("*.png"))
-            samples.append(
-                GammaSample(
-                    sample_id=sample_id,
-                    patient_id=patient_id,
-                    fundus_path=str(fundus_path),
-                    oct_dir=str(oct_dir),
-                    num_bscans=len(bscans),
-                    grade=grade,
-                    grade_index=GRADE_MAP.get(grade, -1),
-                )
+        dims = _parse_mhd_dim_size(mhd_candidates[0])
+        num_bscans = dims[2] if dims else 0
+
+        samples.append(
+            GammaSample(
+                sample_id=sample_id,
+                # GAMMA sample ids are already 1:1 with patients in the
+                # training split (no bilateral/repeat entries observed here) —
+                # kept as its own field rather than assumed identical to
+                # sample_id, since the audit still checks this explicitly.
+                patient_id=sample_id,
+                fundus_path=str(fundus_path),
+                oct_dir=str(oct_dir),
+                num_bscans=num_bscans,
+                grade=grade,
+                grade_index=GRADE_MAP.get(grade, -1),
             )
+        )
 
     if missing:
-        print(f"[gamma_loader] WARNING: {len(missing)} sample_ids in grades.csv "
-              f"had no matching files on disk: {missing[:10]}{'...' if len(missing) > 10 else ''}")
+        print(f"[gamma_loader] WARNING: {len(missing)} sample ids had no matching "
+              f"label/files on disk: {missing[:10]}{'...' if len(missing) > 10 else ''}")
 
     return samples
 
@@ -140,7 +178,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Load GAMMA dataset manifest")
-    parser.add_argument("--root", help="Path to official-layout GAMMA extraction")
+    parser.add_argument("--root", help="Path to the GAMMA 'training' split folder (contains glaucoma_grading_training_GT.xlsx)")
     parser.add_argument("--hf", action="store_true", help="Use the Hugging Face mirror instead")
     parser.add_argument("--out", default="gamma_manifest.json")
     args = parser.parse_args()

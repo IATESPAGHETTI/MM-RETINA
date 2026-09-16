@@ -17,9 +17,10 @@ Then open http://localhost:3000.
 
 - `src/app/` — pages: `/` (landing), `/model`, `/dataset`, `/results`, `/research`, `/about`, `/demo`.
 - `src/components/` — `Navbar`, `Hero`, `WhyMultimodal`, `ArchitecturePipeline`
-  (animated SVG pipeline diagram), `DatasetFacts`, `ResultsPreview`,
-  `AblationTable`, `ResearchIntegrity`, `GlassCard`, `Reveal` (scroll-triggered
-  motion wrapper), `DemoBadge`.
+  (animated SVG pipeline diagram), `OCTViewer` (real, interactive B-scan
+  slider — see below), `DatasetFacts`, `ResultsPreview`, `AblationTable`,
+  `ResearchIntegrity`, `GlassCard`, `Reveal` (scroll-triggered motion
+  wrapper), `DemoBadge`.
 - `src/lib/content.ts` — the single source of truth for page copy, split into
   `VERIFIED_*` (sourced from the official GAMMA/GRAPE dataset cards — see
   `../dataset/README.md`) and `DEMO_*` (UI placeholder values). Every
@@ -37,23 +38,29 @@ section backgrounds — most content sits directly on the page. Respects
 
 ## Real imagery
 
-`public/samples/gamma-0001-fundus.jpg` is a real, unmodified color fundus
-photograph from the official GAMMA dataset (training sample 0001), used on
-the homepage, `/model`, and `/dataset` under the dataset's CC BY-NC-ND terms
-— see `../dataset/README.md` for the full license/citation. It came from a
-git-lfs clone of the dataset at the repo root (`../GAMMA/`, gitignored — not
-part of this repo). The "OCT" visual is a labeled schematic (`OCTSchematic`
-in `WhyMultimodal.tsx`), not a real B-scan: per-slice OCT pixel data lives in
-`.mhd`/`.raw` volumes in that clone that weren't fully pulled via LFS in this
-session. Swap in a real extracted slice there once you have one — don't
-relabel the schematic as a real scan in the meantime.
+Both the fundus photo and the OCT B-scans on this site are real, unmodified
+GAMMA dataset content (training sample 0001), used under the dataset's
+CC BY-NC-ND terms — see `../dataset/README.md` for the full license/citation.
+
+- `public/samples/gamma-0001-fundus.jpg` — the real color fundus photograph.
+- `public/oct-volume/0001/000.jpg` … `255.jpg` — all 256 real B-scans from
+  that sample's actual OCT volume, extracted from the official `.mhd`/`.raw`
+  format via `../dataset/extract_oct_slices.py` (downscaled to 320px wide,
+  ~9MB total). `OCTViewer.tsx` serves these directly as static files and
+  only ever fetches the current slice plus a small prefetch window — never
+  the whole volume at once.
+
+Both came from a git-lfs clone of the official GAMMA "training" split at
+`../dataset/GAMMA/` (gitignored, not part of this repo — see that folder's
+README for the verified real directory layout, which turned out to differ
+from what `gamma_loader.py` originally assumed).
 
 ## What's real vs. placeholder right now
 
 - Dataset facts (sample counts, license, acquisition devices) are sourced
   from the official GAMMA dataset card and paper — see `../dataset/README.md`.
-- The fundus photograph is real (see above); the OCT visual is a labeled
-  schematic, not a real scan.
+- The fundus photo and every OCT B-scan are real (see above) — nothing about
+  the retinal imagery is simulated.
 - Every metric on `/results` and the prediction readout on `/` and `/results`
   is a UI placeholder, explicitly labeled. No model has been trained on
   GAMMA in this repo yet.

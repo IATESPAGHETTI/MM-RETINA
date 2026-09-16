@@ -1,40 +1,5 @@
-"use client";
-
 import Image from "next/image";
-import { motion } from "framer-motion";
 import { Reveal } from "./Reveal";
-
-/** Schematic cross-section of retinal layers — a labeled diagram, not a
- * stand-in for a real B-scan (we don't yet have extracted per-slice pixels
- * from the GAMMA volumes; see dataset/README.md). Kept honest rather than
- * dressing up a fabricated "scan". */
-function OCTSchematic() {
-  const layers = [
-    { d: "M0,40 C60,20 140,60 220,35", opacity: 0.5 },
-    { d: "M0,70 C60,55 140,90 220,68", opacity: 0.7 },
-    { d: "M0,100 C60,88 140,118 220,98", opacity: 0.9 },
-    { d: "M0,128 C60,120 140,142 220,126", opacity: 0.6 },
-  ];
-  return (
-    <svg viewBox="0 0 220 160" className="h-full w-full" role="img" aria-label="Schematic cross-section of retinal layers, representing an OCT B-scan">
-      <rect width="220" height="160" fill="var(--bg-elevated)" />
-      {layers.map((l, i) => (
-        <motion.path
-          key={i}
-          d={l.d}
-          fill="none"
-          stroke="var(--accent-champagne)"
-          strokeWidth={1}
-          strokeOpacity={l.opacity}
-          initial={{ pathLength: 0 }}
-          whileInView={{ pathLength: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 1.2, delay: i * 0.15, ease: "easeInOut" }}
-        />
-      ))}
-    </svg>
-  );
-}
 
 export function WhyMultimodal() {
   return (
@@ -50,8 +15,13 @@ export function WhyMultimodal() {
 
       <div className="mt-20 grid grid-cols-1 gap-10 md:grid-cols-2">
         <Reveal>
-          <div className="overflow-hidden rounded-2xl border border-white/8">
-            <OCTSchematic />
+          <div className="relative aspect-[220/160] overflow-hidden rounded-2xl border border-white/8 bg-bg-elevated">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/oct-volume/0001/128.jpg"
+              alt="Real OCT B-scan, GAMMA sample 0001, slice 128 of 256"
+              className="h-full w-full object-cover"
+            />
           </div>
           <div className="mt-4 flex flex-col gap-1">
             <span className="text-2xl font-semibold tracking-tight text-ink">OCT</span>
