@@ -8,15 +8,27 @@ the CV/single-split experiments used. If those functions are wrong, this
 is wrong the same way; there is deliberately no second implementation to
 drift out of sync.
 
-Known, documented limitation: the trained models expect a short sequence
-of OCT B-scan slices (8, sampled evenly from a 256-slice volume — see
-training/data.py's evenly_spaced_indices). The live demo accepts a single
-OCT image (one B-scan or a representative image), which is repeated
-across all 8 slice positions to match the model's expected input shape.
-This is a real forward pass through the real trained model on a real
-(if repeated) input — not a fabricated prediction — but it is not the
-same as running the model on an actual 256-slice volume the way the CV
-experiments did. Flagged here and in the API response/docs, not hidden.
+The trained models expect a short sequence of OCT B-scan slices (8,
+sampled evenly from a 256-slice volume via training/data.py's
+evenly_spaced_indices(256, 8) == [0, 36, 73, 109, 146, 182, 219, 255]).
+Two OCT input modes are supported here:
+
+  - Real volume (preferred): the caller supplies exactly `n_slices` real,
+    ordered B-scan images (e.g. the actual GAMMA sample 0001 slices at
+    those exact 8 indices, already extracted to
+    website/public/oct-volume/0001/). These are stacked in the given
+    order and passed through unchanged — this is the same shape and
+    semantics the model was trained and cross-validated on, just for one
+    live sample instead of a batch.
+  - Single-slice fallback: the caller supplies one OCT image, which is
+    repeated across all 8 slice positions. This is a real forward pass
+    through the real trained model on a real (if repeated) input — not a
+    fabricated prediction — but it is not equivalent to a real volume.
+    Used when the user uploads their own single image rather than
+    selecting the real demo volume.
+
+Both modes are reported in the API response (`oct_mode`), never silently
+conflated.
 """
 
 from __future__ import annotations
@@ -67,6 +79,14 @@ def is_ready(modality: str) -> bool:
     return modality in _models
 
 
+def expected_oct_slices(modality: str) -> int | None:
+    """How many real slices `oct_images` must contain for this modality's
+    checkpoint, so the API layer can validate a multi-slice upload before
+    calling predict(). None if the modality isn't loaded."""
+    targs = _train_args.get(modality)
+    return targs["oct_slices"] if targs else None
+
+
 def _dummy_fundus(img_size: int) -> torch.Tensor:
     return torch.zeros(1, 3, img_size, img_size)
 
@@ -75,7 +95,18 @@ def _dummy_oct(img_size: int, n_slices: int) -> torch.Tensor:
     return torch.zeros(1, n_slices, 1, img_size, img_size)
 
 
-def predict(modality: str, fundus_image: Image.Image | None, oct_image: Image.Image | None) -> dict:
+def predict(
+    modality: str,
+    fundus_image: Image.Image | None,
+    oct_image: Image.Image | None = None,
+    oct_images: list[Image.Image] | None = None,
+) -> dict:
+    """
+    oct_image: single image, repeated across all slice positions (fallback).
+    oct_images: ordered list of real slices, length must equal the
+        checkpoint's expected `oct_slices` — stacked as-is, no repetition.
+        Takes priority over oct_image if both are somehow given.
+    """
     if modality not in _models:
         raise RuntimeError(f"Model for modality={modality!r} is not loaded — check /api/health")
 
@@ -84,6 +115,9 @@ def predict(modality: str, fundus_image: Image.Image | None, oct_image: Image.Im
     img_size = targs["img_size"]
     n_slices = targs["oct_slices"]
 
+    if oct_images is not None and len(oct_images) != n_slices:
+        raise ValueError(f"oct_images must contain exactly {n_slices} slices, got {len(oct_images)}")
+
     t_pre0 = time.perf_counter()
 
     if fundus_image is not None:
@@ -91,9 +125,16 @@ def predict(modality: str, fundus_image: Image.Image | None, oct_image: Image.Im
     else:
         fundus_t = _dummy_fundus(img_size)
 
-    if oct_image is not None:
+    oct_mode = "none"
+    if oct_images is not None:
+        oct_tf = build_oct_transform(img_size, train=False)
+        slices = [oct_tf(img.convert("L")) for img in oct_images]  # each (1, H, W), in given order
+        oct_t = torch.stack(slices, dim=0).unsqueeze(0)  # (1, N, 1, H, W)
+        oct_mode = "real_volume"
+    elif oct_image is not None:
         single_slice = build_oct_transform(img_size, train=False)(oct_image.convert("L"))  # (1, H, W)
         oct_t = single_slice.unsqueeze(0).repeat(n_slices, 1, 1, 1).unsqueeze(0)  # (1, N, 1, H, W)
+        oct_mode = "repeated_single_slice"
     else:
         oct_t = _dummy_oct(img_size, n_slices)
 
@@ -118,5 +159,5 @@ def predict(modality: str, fundus_image: Image.Image | None, oct_image: Image.Im
         "preprocessing_ms": preprocessing_ms,
         "inference_ms": inference_ms,
         "model_version": targs.get("run_name", CHECKPOINT_FILES[modality].stem),
-        "oct_repeated_single_slice": oct_image is not None and modality in ("oct", "fusion"),
+        "oct_mode": oct_mode if modality in ("oct", "fusion") else "n/a",
     }
