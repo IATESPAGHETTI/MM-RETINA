@@ -32,6 +32,7 @@ type PredictResult = {
   inference_time_ms: number;
   model_version: string;
   oct_mode: "real_volume" | "repeated_single_slice" | "none" | "n/a";
+  fundus_heatmap: string | null;
 };
 
 async function urlToFile(url: string, filename: string): Promise<File> {
@@ -52,6 +53,8 @@ export default function DemoPage() {
 
   const [backendStatus, setBackendStatus] = useState<"checking" | "online" | "offline">("checking");
   const [modelsLoaded, setModelsLoaded] = useState<string[]>([]);
+
+  const [explain, setExplain] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,6 +139,7 @@ export default function DemoPage() {
     try {
       const form = new FormData();
       form.append("modality", modality);
+      if (needsFundus && explain) form.append("explain", "true");
       if (needsFundus && fundusFile) form.append("fundus", fundusFile);
       if (needsOct) {
         if (octMode === "volume" && octVolumeFiles) {
@@ -320,11 +324,23 @@ export default function DemoPage() {
               </div>
             </div>
 
+            {needsFundus && (
+              <label className="mt-5 flex items-center justify-center gap-2 text-xs text-ink-muted">
+                <input
+                  type="checkbox"
+                  checked={explain}
+                  onChange={(e) => setExplain(e.target.checked)}
+                  className="accent-[var(--accent-champagne)]"
+                />
+                Show Grad-CAM explanation for the fundus branch
+              </label>
+            )}
+
             <button
               type="button"
               onClick={runAnalysis}
               disabled={!canRun}
-              className="mt-6 w-full rounded-full bg-ink px-6 py-3 text-sm font-medium text-bg transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
+              className="mt-4 w-full rounded-full bg-ink px-6 py-3 text-sm font-medium text-bg transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
             >
               {loading ? "Running…" : "Run analysis"}
             </button>
@@ -358,6 +374,22 @@ export default function DemoPage() {
                   {result.inference_time_ms.toFixed(1)}ms inference · model {result.model_version}
                   {octModeCaption[result.oct_mode] && <> · {octModeCaption[result.oct_mode]}</>}
                 </p>
+
+                {result.fundus_heatmap && (
+                  <div className="mx-auto mt-6 max-w-[220px]">
+                    <p className="mb-2 text-xs uppercase tracking-[0.3em] text-ink-faint">
+                      Grad-CAM (fundus)
+                    </p>
+                    <div className="relative aspect-square overflow-hidden rounded-xl border border-white/10">
+                      <Image src={result.fundus_heatmap} alt="Grad-CAM heatmap over the fundus image" fill className="object-cover" unoptimized />
+                    </div>
+                    <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
+                      Highlights regions that most influenced the predicted
+                      class. This is model attribution, not proof of causal
+                      or clinical reasoning.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
           </GlassCard>

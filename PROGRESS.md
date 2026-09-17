@@ -6,6 +6,96 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-09-17 08:40 (follow-up: checkpoint disclosure, real multi-slice OCT, Grad-CAM)
+
+Follow-up to the previous entry, addressing a review of the live demo.
+
+### Completed
+1. **Checkpoint disclosure.** Added explicit text to `/demo` and
+   `backend/README.md` stating the live demo uses the single-split
+   demonstration checkpoints (`fundus_run1`/`oct_run1`/`fusion_run1`),
+   not the 5-fold CV fold checkpoints behind `/results`. Investigated
+   exposing the exact CV fold checkpoints instead: confirmed none exist
+   on disk (`cross_validate.py` deletes them by default) — reproducing
+   them means retraining, which is out of scope for a disclosure fix, so
+   documented instead of retrained.
+2. **Real multi-slice OCT input.** `training/data.py`'s
+   `evenly_spaced_indices(256, 8)` gives an exact fixed index set
+   `[0,36,73,109,146,182,219,255]`; all of GAMMA sample 0001's 256 real
+   slices are already served at `website/public/oct-volume/0001/`, so
+   real 8-slice-volume support was straightforward and reliable to add
+   (not fabricated, not a workaround). `inference.predict()` now accepts
+   an ordered list of real slice images and stacks them with zero
+   repetition — same shape/semantics as training/CV. `POST /api/predict`
+   gained an `oct_slices` multipart field (validated against the loaded
+   model's expected count before inference runs). The single-slice
+   fallback is unchanged and still available; both modes are now reported
+   via `oct_mode` (`"real_volume"` vs `"repeated_single_slice"`), replacing
+   the old boolean `oct_repeated_single_slice` field.
+3. **Grad-CAM — fundus only, OCT deferred.** Implemented and tested a
+   real Grad-CAM (`backend/gradcam.py`) hooking the fundus encoder's
+   `layer4` (verified this exists on the actual loaded resnet18 backbone
+   before writing the hook). Ran a real forward+backward pass on the real
+   GAMMA sample 0001 fundus photo and **visually inspected the actual
+   output image** (not just checked it didn't crash) — the heatmap
+   correctly highlighted the optic disc, the anatomically relevant region
+   for glaucoma grading. Wired through `inference.predict(explain=True)`
+   and `POST /api/predict`'s `explain` field; confirmed via curl that it
+   works for fundus and fusion modality, and is a clean no-op (no error,
+   `fundus_heatmap: null`) for oct-only. OCT Grad-CAM was investigated
+   (architecturally plausible — shared backbone per slice — but attention-
+   pooled multi-instance attribution is a different and less-established
+   claim than single-image Grad-CAM) and **explicitly deferred**, not
+   attempted, per the instruction to only ship what's verified reliable.
+
+### Real testing performed
+- curl: fundus/oct/fusion all still work after the OCT input refactor.
+- curl: real 8-slice volume for oct-only and fusion — both succeeded,
+  `oct_mode: "real_volume"`.
+- curl: wrong slice count (5 instead of 8) — clean 400, not a crash.
+- curl: single-slice fallback still works for all 3 modalities.
+- curl: `explain=true` for fundus and fusion — real heatmap returned;
+  saved and visually inspected the actual decoded PNG (twice — once from
+  a standalone script, once from the live API response — identical).
+- curl: `explain=true` for oct-only — correctly no-op, no error.
+- Browser, full end-to-end against the real running dev server: fundus/
+  OCT (both single-slice and real-volume)/fusion all produce predictions
+  matching the curl results; Grad-CAM checkbox produces a real rendered
+  heatmap image in the DOM (verified via `naturalWidth`/`naturalHeight`/
+  `complete` on the actual `<img>` element, since this session's
+  screenshot tool was unreliable throughout — DOM-level checks were used
+  as the source of truth instead, consistent with earlier in this
+  project).
+
+### Files changed
+`backend/gradcam.py` (new), `backend/inference.py`, `backend/app.py`,
+`backend/README.md`, `website/src/app/demo/page.tsx`, `PROGRESS.md`.
+No changes to `EXPERIMENTS.md`, CV methodology, or `training/`'s
+validated training/evaluation code — nothing there needed a genuine bug
+fix this round.
+
+### Verification checklist (per the follow-up request)
+1. Fundus: works (curl + browser).
+2. OCT: works, both single-slice and real-8-slice-volume modes (curl + browser).
+3. Fusion: works, both OCT input modes, with and without Grad-CAM (curl + browser).
+4. Browser end-to-end: works (DOM-verified, screenshot tool unreliable this session).
+5. Real multi-slice OCT support: ADDED (not left as a limitation — the
+   single-slice repeat is now an explicit fallback, not the only option).
+6. Grad-CAM: ADDED for fundus/fusion; OCT explicitly DEFERRED with reasoning.
+7. Files changed: listed above.
+8. Remaining limitations: OCT Grad-CAM not implemented (deferred, see
+   backend/README.md); no Docker; no auth; uploaded images processed
+   in-memory only (no persistence, by design).
+
+### Next action
+If continuing: OCT Grad-CAM (per-slice, aggregated through the attention
+weights) would be the natural next explainability step, but should get
+its own dedicated validation pass (visual inspection across multiple
+samples, not just one) before shipping, per how the fundus version was
+verified here.
+
+---
+
 ## 2026-09-17 02:35 (website updated with CV results; live demo backend built)
 
 ### Completed

@@ -101,6 +101,7 @@ async def predict(
     fundus: Optional[UploadFile] = File(None),
     oct: Optional[UploadFile] = File(None),
     oct_slices: Optional[List[UploadFile]] = File(None),
+    explain: bool = Form(False),
 ):
     """
     OCT input, in priority order:
@@ -162,7 +163,7 @@ async def predict(
     )
 
     try:
-        result = inference.predict(modality, fundus_img, oct_img, oct_slice_imgs)
+        result = inference.predict(modality, fundus_img, oct_img, oct_slice_imgs, explain=explain)
     except ValueError as e:
         log.warning("[%s] rejected: %s", request_id, e)
         raise HTTPException(status_code=400, detail=str(e))
@@ -186,4 +187,5 @@ async def predict(
         "inference_time_ms": round(result["inference_ms"], 2),
         "model_version": result["model_version"],
         "oct_mode": result["oct_mode"],
+        "fundus_heatmap": result["fundus_heatmap"],
     }
