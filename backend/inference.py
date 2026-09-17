@@ -40,6 +40,8 @@ from pathlib import Path
 import torch
 from PIL import Image
 
+import gradcam
+
 TRAINING_DIR = Path(__file__).resolve().parent.parent / "training"
 sys.path.insert(0, str(TRAINING_DIR))
 
@@ -100,12 +102,19 @@ def predict(
     fundus_image: Image.Image | None,
     oct_image: Image.Image | None = None,
     oct_images: list[Image.Image] | None = None,
+    explain: bool = False,
 ) -> dict:
     """
     oct_image: single image, repeated across all slice positions (fallback).
     oct_images: ordered list of real slices, length must equal the
         checkpoint's expected `oct_slices` — stacked as-is, no repetition.
         Takes priority over oct_image if both are somehow given.
+    explain: if True and a fundus image was provided (modality in
+        {"fundus", "fusion"}), also runs a real Grad-CAM forward+backward
+        pass (see gradcam.py) and includes `fundus_heatmap` as a base64
+        PNG data URL in the result. No-op (silently skipped, not an
+        error) for modality="oct" or when no fundus image is given —
+        there's nothing to explain in that case.
     """
     if modality not in _models:
         raise RuntimeError(f"Model for modality={modality!r} is not loaded — check /api/health")
@@ -151,7 +160,7 @@ def predict(
 
     pred_idx = int(probs.argmax())
 
-    return {
+    result = {
         "modality": modality,
         "prediction": GRADE_NAMES[pred_idx],
         "confidence": float(probs[pred_idx]),
@@ -160,4 +169,16 @@ def predict(
         "inference_ms": inference_ms,
         "model_version": targs.get("run_name", CHECKPOINT_FILES[modality].stem),
         "oct_mode": oct_mode if modality in ("oct", "fusion") else "n/a",
+        "fundus_heatmap": None,
     }
+
+    if explain and fundus_image is not None and modality in ("fundus", "fusion"):
+        # Explains the class the model actually predicted (pred_idx), not a
+        # hypothetical one — the heatmap matches the prediction shown to
+        # the user. A fresh forward+backward pass; the no_grad() one above
+        # is untouched/unaffected.
+        cam = gradcam.fundus_gradcam(model, fundus_t, oct_t, pred_idx)
+        base_image = fundus_image.convert("RGB").resize((img_size, img_size))
+        result["fundus_heatmap"] = gradcam.overlay_heatmap_as_data_url(base_image, cam)
+
+    return result
