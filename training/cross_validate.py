@@ -121,10 +121,12 @@ def train_and_eval_one_fold(modality: str, fold_idx: int, split_path: Path, args
         fundus_encoder=args.fundus_encoder,
         oct_encoder=args.oct_encoder,
         fusion_dim=args.fusion_dim,
+        fusion_type=args.fusion_type,
         modality_dropout=args.modality_dropout,
         no_pretrained=args.no_pretrained,
         img_size=args.img_size,
         oct_slices=args.oct_slices,
+        oct_representation=args.oct_representation,
         batch_size=args.batch_size,
         workers=args.workers,
         epochs=args.epochs,
@@ -135,6 +137,8 @@ def train_and_eval_one_fold(modality: str, fold_idx: int, split_path: Path, args
         focal_gamma=args.focal_gamma,
         amp=args.amp,
         seed=args.seed,
+        checkpoint_metric=args.checkpoint_metric,
+        no_tensorboard=not args.tensorboard,
     )
 
     t0 = time.time()
@@ -148,7 +152,8 @@ def train_and_eval_one_fold(modality: str, fold_idx: int, split_path: Path, args
     model.eval()
 
     val_ds = GammaMultimodalDataset(
-        args.manifest, str(split_path), "val", args.img_size, args.img_size, args.oct_slices, train_augment=False
+        args.manifest, str(split_path), "val", args.img_size, args.img_size, args.oct_slices,
+        train_augment=False, oct_representation=args.oct_representation,
     )
     val_loader = DataLoader(val_ds, batch_size=args.batch_size, shuffle=False)
     eval_result = run_evaluation(model, val_loader, device)
@@ -193,7 +198,10 @@ def aggregate(all_results: list[dict], out_dir: Path) -> dict:
         rows = [r for r in all_results if r["modality"] == modality]
         if not rows:
             continue
-        metric_names = ["accuracy", "balanced_accuracy", "macro_f1", "roc_auc_ovr_macro"]
+        metric_names = [
+            "accuracy", "balanced_accuracy", "macro_f1", "roc_auc_ovr_macro",
+            "cohen_kappa", "quadratic_weighted_kappa",
+        ]
         per_metric = {}
         for m in metric_names:
             values = [r["metrics"][m] for r in rows if r["metrics"].get(m) is not None]
@@ -234,10 +242,12 @@ def run_smoke_test(args, device):
         fundus_encoder="resnet18",
         oct_encoder="resnet18",
         fusion_dim=256,
+        fusion_type="vector",
         modality_dropout=0.15,
         no_pretrained=False,
         img_size=96,
         oct_slices=4,
+        oct_representation="single",
         batch_size=4,
         workers=0,
         epochs=1,
@@ -249,6 +259,8 @@ def run_smoke_test(args, device):
         amp=True,
         seed=args.seed,
         keep_checkpoints=False,
+        checkpoint_metric="val_loss",
+        tensorboard=False,
     )
 
     for modality in MODALITIES:
@@ -273,11 +285,23 @@ def main():
     ap.add_argument("--fundus-encoder", default="resnet18")
     ap.add_argument("--oct-encoder", default="resnet18")
     ap.add_argument("--fusion-dim", type=int, default=256)
+    ap.add_argument(
+        "--fusion-type",
+        choices=["vector", "token"],
+        default="vector",
+        help="Passed through to train_multimodal.py for every fold — see its --help for details.",
+    )
     ap.add_argument("--modality-dropout", type=float, default=0.15)
     ap.add_argument("--no-pretrained", action="store_true")
 
     ap.add_argument("--img-size", type=int, default=160)
     ap.add_argument("--oct-slices", type=int, default=8)
+    ap.add_argument(
+        "--oct-representation",
+        choices=["single", "2.5d"],
+        default="single",
+        help="Passed through to train_multimodal.py for every fold — see its --help for details.",
+    )
     ap.add_argument("--batch-size", type=int, default=4)
     ap.add_argument("--workers", type=int, default=0)
 
@@ -291,6 +315,16 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--keep-checkpoints", action="store_true",
                      help="Keep all fold checkpoints (default: delete after eval to save disk — 15 runs' worth adds up).")
+    ap.add_argument(
+        "--checkpoint-metric",
+        choices=["val_loss", "quadratic_weighted_kappa", "macro_f1", "roc_auc_ovr_macro", "accuracy"],
+        default="val_loss",
+        help="Passed through to train_multimodal.py for every fold's best-checkpoint selection.",
+    )
+    ap.add_argument("--tensorboard", action="store_true",
+                     help="Enable per-fold TensorBoard logging under runs/cv_<modality>_fold<k> "
+                          "(off by default for CV — 15 runs' worth of live logs is rarely useful; "
+                          "use plain train_multimodal.py for live-monitored single runs).")
 
     ap.add_argument("--smoke-test", action="store_true")
     args = ap.parse_args()
@@ -329,7 +363,8 @@ def main():
             m = result["metrics"]
             print(f"[cv] fold {fold_idx} {modality}: accuracy={m['accuracy']:.3f} "
                   f"balanced_accuracy={m['balanced_accuracy']:.3f} macro_f1={m['macro_f1']:.3f} "
-                  f"roc_auc={m.get('roc_auc_ovr_macro')}")
+                  f"roc_auc={m.get('roc_auc_ovr_macro')} kappa={m['cohen_kappa']:.3f} "
+                  f"qwk={m['quadratic_weighted_kappa']:.3f}")
 
     aggregate(all_results, out_dir)
 

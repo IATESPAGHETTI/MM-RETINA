@@ -1,0 +1,27 @@
+{
+  "experiment": "baseline_v1",
+  "purpose": "Immutable fusion-model comparison reference for the EXP-01..EXP-06 ablation series in MM_RETINA_NEXT_EXPERIMENTS.md.",
+  "date": "2026-09-27",
+  "dataset": {
+    "manifest": "dataset/gamma_manifest.json",
+    "num_labeled_samples": 100,
+    "num_patients": 100,
+    "class_distribution": {"normal": 50, "early": 26, "progressive": 24},
+    "note": "The GAMMA 'testing' split (100 more raw samples) has no public ground-truth labels anywhere on disk (verified, see dataset/audit_report.json -> full_dataset_availability) -- 100 labeled patients is the real full supervised dataset, not a partial view of ~300."
+  },
+  "split": {
+    "type": "5-fold patient-level, grade-stratified round-robin",
+    "seed": 42,
+    "fold_sizes": {"0": 21, "1": 20, "2": 20, "3": 20, "4": 19},
+    "note": "Fold assignment is deterministic given (manifest, k=5, seed=42) and is identical to the original cv-run-1 (2026-09-17) fold membership -- verified by construction in cross_validate.py's make_folds(), not re-derived by hand."
+  },
+  "git_commit": "64f1cb764d8d53c84d64c3b2ebff80d387be3e96",
+  "checkpoints_retained": false,
+  "checkpoints_note": "Per-fold checkpoints deleted after evaluation (cross_validate.py default) -- only metrics/confusion_matrix/predictions are kept, which is everything needed to reproduce the numbers in metrics.json without retraining.",
+  "raw_results_dir": "results/cv_fusion_baseline_v1/",
+  "supersedes": {
+    "prior_fusion_baseline": "results/cv/fusion/ (cv-run-1, 2026-09-17)",
+    "why_rerun_instead_of_reused": "cv-run-1 predates Cohen's Kappa / QWK support in evaluate.py's compute_classification_metrics(). Per the experimental rule 'same evaluation code', this baseline was re-run under the current pipeline (identical seed/folds/hyperparameters) rather than reusing cv-run-1's partial metric set, so EXP-02 onward can be compared metric-for-metric, including kappa/QWK.",
+    "reproducibility_caveat": "accuracy/balanced_accuracy/macro_f1/roc_auc differ slightly from cv-run-1's original fusion numbers (e.g. mean accuracy 0.731 here vs 0.710 in cv-run-1) despite an identical seed and fold assignment. This is expected GPU-training non-determinism (cuDNN algorithm selection, etc. -- no determinism flags were set on either run) not a bug in either run; both are real, honestly reported results from their own real training runs."
+  }
+}

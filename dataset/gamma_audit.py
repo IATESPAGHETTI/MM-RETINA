@@ -80,8 +80,55 @@ def audit_manifest(manifest_path: str | Path) -> dict:
         report["fundus_image_dimensions"] = "unavailable (PIL not installed)"
 
     report["patient_level_split_proposal"] = _propose_patient_split(samples)
+    report["full_dataset_availability"] = _check_full_dataset_availability(manifest_path)
 
     return report
+
+
+def _check_full_dataset_availability(manifest_path: str | Path) -> dict:
+    """Checks whether the GAMMA 'testing' split (the other ~100 raw samples
+    shipped alongside the 100-sample labeled 'training' split) has any
+    ground-truth labels available on disk. Per the public GAMMA challenge
+    structure, grade labels for the validation/testing splits are withheld
+    for the competition leaderboard and are not included in this download —
+    this check confirms that rather than assuming it."""
+    gamma_root = Path(manifest_path).resolve().parent / "GAMMA" / "grading" / "Glaucoma_grading"
+    testing_dir = gamma_root / "testing" / "multi-modality_images"
+    training_gt = gamma_root / "training" / "glaucoma_grading_training_GT.xlsx"
+
+    result = {
+        "training_split_labeled_samples": None,
+        "testing_split_raw_samples_found": None,
+        "testing_split_has_ground_truth_file": False,
+        "conclusion": None,
+    }
+
+    if training_gt.exists():
+        result["training_split_labeled_samples"] = "ground truth file present (this manifest's 100 samples)"
+
+    if testing_dir.exists():
+        result["testing_split_raw_samples_found"] = len(list(testing_dir.iterdir()))
+        # Any ground-truth-looking file directly under the testing split root.
+        testing_root = gamma_root / "testing"
+        gt_candidates = list(testing_root.glob("*ground*")) + list(testing_root.glob("*GT*")) + list(testing_root.glob("*label*"))
+        result["testing_split_has_ground_truth_file"] = bool(gt_candidates)
+    else:
+        result["testing_split_raw_samples_found"] = 0
+
+    if result["testing_split_raw_samples_found"] and not result["testing_split_has_ground_truth_file"]:
+        result["conclusion"] = (
+            f"Found {result['testing_split_raw_samples_found']} additional raw samples in the GAMMA "
+            "'testing' split, but NO ground-truth grade labels exist for them anywhere on disk. "
+            "The full labeled dataset available for supervised training/evaluation is exactly the "
+            "100 samples already in this manifest — it cannot be expanded to ~300 without labels "
+            "that were never publicly released for those samples."
+        )
+    elif not result["testing_split_raw_samples_found"]:
+        result["conclusion"] = "No additional GAMMA testing-split samples found on disk."
+    else:
+        result["conclusion"] = "Additional labeled samples appear to be available — investigate further."
+
+    return result
 
 
 def _propose_patient_split(samples: list[dict], train=0.7, val=0.15, seed=42) -> dict:

@@ -22,6 +22,7 @@ import torch
 from sklearn.metrics import (
     accuracy_score,
     balanced_accuracy_score,
+    cohen_kappa_score,
     confusion_matrix,
     f1_score,
     precision_recall_fscore_support,
@@ -44,6 +45,10 @@ def load_model_from_checkpoint(ckpt_path: Path, device: torch.device):
     ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
     train_args = ckpt["args"]
 
+    # .get() with a "single" default: checkpoints saved before Experiment
+    # OCT-2 (2.5D) was added don't have this key, and "single" is exactly
+    # what they were trained with.
+    oct_representation = train_args.get("oct_representation", "single")
     model = GammaMultimodalModel(
         fundus_encoder=train_args["fundus_encoder"],
         oct_encoder=train_args["oct_encoder"],
@@ -51,6 +56,8 @@ def load_model_from_checkpoint(ckpt_path: Path, device: torch.device):
         modality_dropout=train_args["modality_dropout"],
         pretrained=False,  # weights come from the checkpoint, not ImageNet, at eval time
         modality=train_args["modality"],
+        oct_in_chans=3 if oct_representation == "2.5d" else 1,
+        fusion_type=train_args.get("fusion_type", "vector"),
     ).to(device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
@@ -58,6 +65,61 @@ def load_model_from_checkpoint(ckpt_path: Path, device: torch.device):
     print(f"[evaluate] Loaded checkpoint from epoch {ckpt['epoch']} "
           f"(val_loss={ckpt['val_loss']:.4f}), modality={train_args['modality']}")
     return model, train_args
+
+
+def compute_classification_metrics(labels: np.ndarray, probs: np.ndarray) -> dict:
+    """Shared metric computation from real labels + predicted class
+    probabilities. Used both by standalone evaluate.py runs and by
+    train_multimodal.py's per-epoch validation logging, so the two never
+    silently diverge in how a metric is defined."""
+    preds = probs.argmax(axis=-1)
+
+    precision, recall, f1_per_class, support = precision_recall_fscore_support(
+        labels, preds, labels=list(range(len(GRADE_NAMES))), zero_division=0
+    )
+
+    metrics = {
+        "num_test_samples": int(len(labels)),
+        "accuracy": float(accuracy_score(labels, preds)),
+        "balanced_accuracy": float(balanced_accuracy_score(labels, preds)),
+        "macro_f1": float(f1_score(labels, preds, average="macro", zero_division=0)),
+        "cohen_kappa": float(cohen_kappa_score(labels, preds)),
+        # QWK relies on GRADE_NAMES/grade_index being in true ordinal order
+        # (normal=0 < early=1 < progressive=2) so quadratic weights penalize
+        # normal<->progressive confusions more than normal<->early ones.
+        "quadratic_weighted_kappa": float(cohen_kappa_score(labels, preds, weights="quadratic")),
+        "per_class": {
+            GRADE_NAMES[i]: {
+                "precision": float(precision[i]),
+                "recall": float(recall[i]),
+                "f1": float(f1_per_class[i]),
+                "support": int(support[i]),
+            }
+            for i in range(len(GRADE_NAMES))
+        },
+    }
+
+    try:
+        # One-vs-rest, macro-averaged (unweighted mean across the 3 classes,
+        # not sample-weighted) — kept consistent across every experiment in
+        # this project; do not silently switch to "ovo" or "weighted".
+        metrics["roc_auc_ovr_macro"] = float(
+            roc_auc_score(labels, probs, multi_class="ovr", average="macro", labels=list(range(len(GRADE_NAMES))))
+        )
+    except ValueError as e:
+        # Happens if the test split doesn't contain all classes — report why,
+        # don't silently substitute a number.
+        metrics["roc_auc_ovr_macro"] = None
+        metrics["roc_auc_error"] = str(e)
+
+    cm = confusion_matrix(labels, preds, labels=list(range(len(GRADE_NAMES))))
+
+    return {
+        "metrics": metrics,
+        "confusion_matrix": cm.tolist(),
+        "preds": preds,
+        "probs": probs,
+    }
 
 
 def run_evaluation(model, loader, device) -> dict:
@@ -74,53 +136,20 @@ def run_evaluation(model, loader, device) -> dict:
     logits = np.concatenate(all_logits, axis=0)
     labels = np.concatenate(all_labels, axis=0)
     probs = torch.softmax(torch.from_numpy(logits), dim=-1).numpy()
-    preds = probs.argmax(axis=-1)
 
-    precision, recall, f1_per_class, support = precision_recall_fscore_support(
-        labels, preds, labels=list(range(len(GRADE_NAMES))), zero_division=0
-    )
-
-    metrics = {
-        "num_test_samples": int(len(labels)),
-        "accuracy": float(accuracy_score(labels, preds)),
-        "balanced_accuracy": float(balanced_accuracy_score(labels, preds)),
-        "macro_f1": float(f1_score(labels, preds, average="macro", zero_division=0)),
-        "per_class": {
-            GRADE_NAMES[i]: {
-                "precision": float(precision[i]),
-                "recall": float(recall[i]),
-                "f1": float(f1_per_class[i]),
-                "support": int(support[i]),
-            }
-            for i in range(len(GRADE_NAMES))
-        },
-    }
-
-    try:
-        metrics["roc_auc_ovr_macro"] = float(
-            roc_auc_score(labels, probs, multi_class="ovr", average="macro", labels=list(range(len(GRADE_NAMES))))
-        )
-    except ValueError as e:
-        # Happens if the test split doesn't contain all classes — report why,
-        # don't silently substitute a number.
-        metrics["roc_auc_ovr_macro"] = None
-        metrics["roc_auc_error"] = str(e)
-
-    cm = confusion_matrix(labels, preds, labels=list(range(len(GRADE_NAMES))))
-
-    return {
-        "metrics": metrics,
-        "confusion_matrix": cm.tolist(),
-        "predictions": [
-            {
-                "sample_id": sid,
-                "true_label": GRADE_NAMES[int(t)],
-                "pred_label": GRADE_NAMES[int(p)],
-                **{f"prob_{GRADE_NAMES[c]}": float(probs[i, c]) for c in range(len(GRADE_NAMES))},
-            }
-            for i, (sid, t, p) in enumerate(zip(all_ids, labels, preds))
-        ],
-    }
+    result = compute_classification_metrics(labels, probs)
+    preds = result.pop("preds")
+    result.pop("probs")
+    result["predictions"] = [
+        {
+            "sample_id": sid,
+            "true_label": GRADE_NAMES[int(t)],
+            "pred_label": GRADE_NAMES[int(p)],
+            **{f"prob_{GRADE_NAMES[c]}": float(probs[i, c]) for c in range(len(GRADE_NAMES))},
+        }
+        for i, (sid, t, p) in enumerate(zip(all_ids, labels, preds))
+    ]
+    return result
 
 
 def main():
@@ -142,6 +171,7 @@ def main():
         oct_img_size=train_args["img_size"],
         num_slices=train_args["oct_slices"],
         train_augment=False,
+        oct_representation=train_args.get("oct_representation", "single"),
     )
     print(f"[evaluate] Evaluating on {len(test_ds)} REAL held-out test samples "
           f"(never seen during training)")

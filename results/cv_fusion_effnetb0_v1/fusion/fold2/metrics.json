@@ -1,0 +1,36 @@
+{
+  "modality": "fusion",
+  "fold": 2,
+  "best_epoch": 12,
+  "best_val_loss": 0.45428711771965025,
+  "train_seconds": 248.3168387413025,
+  "metrics": {
+    "num_test_samples": 20,
+    "accuracy": 0.9,
+    "balanced_accuracy": 0.8666666666666667,
+    "macro_f1": 0.8666666666666667,
+    "cohen_kappa": 0.84,
+    "quadratic_weighted_kappa": 0.9272727272727272,
+    "per_class": {
+      "normal": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 10
+      },
+      "early": {
+        "precision": 0.8,
+        "recall": 0.8,
+        "f1": 0.8,
+        "support": 5
+      },
+      "progressive": {
+        "precision": 0.8,
+        "recall": 0.8,
+        "f1": 0.8,
+        "support": 5
+      }
+    },
+    "roc_auc_ovr_macro": 0.9733333333333333
+  }
+}

@@ -2,7 +2,7 @@
   "cv_fold": 1,
   "cv_k": 5,
   "seed": 42,
-  "git_commit": "94ae2c10bde5bc460639c83af2be33724598483d",
+  "git_commit": "64f1cb764d8d53c84d64c3b2ebff80d387be3e96",
   "num_samples": 100,
   "num_patients": 100,
   "sample_split": {

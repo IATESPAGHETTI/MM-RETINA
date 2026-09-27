@@ -6,6 +6,349 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-09-27 (EXP-06 implemented, run, and recorded — architecture freeze point reached)
+
+### Completed
+Implemented token-level multimodal fusion (`--fusion-type token`) in
+`model.py`/`train_multimodal.py`/`evaluate.py`/`cross_validate.py`:
+`FundusEncoder`/`OCTVolumeEncoder` gained a `return_tokens` mode (spatial
+feature-map tokens / per-slice tokens instead of one pooled vector), new
+`TokenCrossModalFusion` (small 2-layer Transformer) and
+`TokenModalityDropout` modules. Default (`vector`) path re-verified
+byte-identical to every prior baseline smoke test. Directly verified token
+shapes (25 fundus + 8 OCT tokens) and modality-dropout behavior on
+synthetic data before running anything real, per the project's own
+smoke-test standard.
+
+Ran the real 5-fold CV comparison against `fusion_effnetb0_v1` (EXP-05,
+the current best config). Result: **inconclusive, not adopted** — QWK/
+ROC-AUC improved, but macro F1/balanced accuracy (higher decision-rule
+priority per the plan) both came out slightly lower, and fold-to-fold
+variance roughly doubled on most metrics. Full numbers and reasoning in
+`EXPERIMENTS.md` → `fusion_token_v1`.
+
+### Current best frozen architecture (per the plan's "ARCHITECTURE FREEZE"
+milestone)
+Fusion model: EfficientNet-B0 fundus encoder + resnet18 OCT encoder + 8
+OCT slices (single/non-2.5D representation) + vector (2-token)
+cross-modal fusion. Real 5-fold CV: accuracy 0.820±0.055, balanced_accuracy
+0.790±0.057, macro_f1 0.781±0.061, roc_auc 0.924±0.039, kappa 0.716±0.087,
+qwk 0.798±0.113 (`results/cv_fusion_effnetb0_v1/`).
+
+### Files changed
+`training/model.py`, `training/train_multimodal.py`,
+`training/evaluate.py`, `training/cross_validate.py`, `EXPERIMENTS.md`,
+`PROGRESS.md`. `results/cv_fusion_token_v1/` (new, real, 5 folds +
+summary.json).
+
+### Next action
+This is the plan's explicit architecture-freeze checkpoint. The next
+candidates in the plan's Final Sequence (ordinal classifier, anatomy-aware
+auxiliary learning, multi-seed validation, fold ensemble) are all
+explicitly gated on the user's go-ahead per the plan's own "Do NOT Start
+These Yet" section — not started without it.
+
+---
+
+## 2026-09-27 (EXP-04/EXP-05 recorded — OCT slices settled, fundus backbone win)
+
+### Completed
+- EXP-04 (16 slices) recorded: monotonic regression vs. 8/12 slices on
+  every metric. **Selected 8 slices + single representation** as the final
+  OCT configuration — clean, unambiguous, no tie-breaking needed.
+- EXP-05 (EfficientNet-B0 fundus encoder, OCT config fixed at the EXP-04
+  winner) recorded: **clear win on every metric** (accuracy 0.731→0.820,
+  macro F1 0.681→0.781, kappa 0.577→0.716, all improved on essentially
+  every individual fold, not just the mean), with fewer parameters than
+  resnet18 (4.01M vs 11.18M). Adopted as the new fundus encoder. This is
+  the strongest, least ambiguous result in the whole series so far.
+
+### Next action
+EXP-06: token-level multimodal fusion. Unlike EXP-02..EXP-05 (CLI-flag
+sweeps over the existing architecture), this requires new model code —
+spatial fundus feature tokens instead of one pooled vector, OCT per-slice
+tokens instead of the attention-pooled single vector, and a cross-modal
+transformer over the concatenated token sequence. Building on the
+EXP-05-winning config (EfficientNet-B0 fundus + resnet18 OCT + 8-slice
+single) as the new comparison base. Will implement behind a new
+`fusion_type` flag so the existing (winning) vector-fusion path stays
+completely unchanged/available, smoke-test thoroughly per the project's
+own standing rule (real shapes, real forward/backward, VRAM check) before
+any real training run.
+
+---
+
+## 2026-09-27 (EXP-03 recorded, environment break found+fixed, EXP-04 launched)
+
+Continuing the plan autonomously. EXP-03 (12 slices) finished: a clean,
+unambiguous regression vs. `baseline_v1` on every one of the 6 metrics,
+with substantially higher fold-to-fold variance too (accuracy std 0.116 vs
+0.072). Not adopted. Full numbers in `EXPERIMENTS.md`.
+
+### Real environment bug found and fixed (not caused by this session's own
+work, but blocking it)
+Before launching EXP-04 (16 slices), the pre-training smoke test failed:
+`from torch.utils.tensorboard import SummaryWriter` crashed with
+`AttributeError: module 'numpy' has no attribute 'bool8'`. Root cause,
+traced step by step rather than guessed at:
+1. `tensorboard` had been silently downgraded from 2.21.0 (installed
+   earlier this session) to 2.10.1 by something external to this session —
+   `pip show tensorflow-intel` showed a `tensorflow-intel==2.10.0` package
+   present that requires `tensorboard<2.11`, and its dist-info timestamps
+   matched almost exactly when the failure first appeared. This session
+   never installed tensorflow; it must have come from something else
+   running against the same global Python environment.
+2. Reinstalling `tensorboard>=2.16` fixed the numpy issue but exposed a
+   second, real problem: `tensorflow-intel` itself doesn't even import
+   standalone anymore (`TypeError: Descriptors cannot be created
+   directly` — a protobuf version too new for that old TF build).
+   Verified with a bare `import tensorflow` in isolation before touching
+   anything, confirming it was already completely unusable by anyone on
+   this machine, not something this session was breaking.
+3. Fix: uninstalled `tensorflow-intel` (confirmed already-broken,
+   confirmed not used anywhere in this PyTorch-only project — consistent
+   with the original session's note that TensorFlow "is not installed" /
+   only relevant to the never-run `Adv_prj4/` Keras sketch). Re-verified
+   `torch.utils.tensorboard` imports cleanly afterward, then re-ran the
+   16-slice smoke test for real (878MB peak CUDA, well within budget).
+4. Launched EXP-04 (16 slices) for real once the environment was
+   confirmed healthy again.
+
+### Next action
+Wait for EXP-04 to finish, record it, then select the best OCT slice
+count for fusion (8 vs 12 vs 16) before EXP-05.
+
+---
+
+## 2026-09-27 (EXP-01 + EXP-02 per MM_RETINA_NEXT_EXPERIMENTS.md)
+
+Following the new execution plan the user provided: freeze a clean fusion
+baseline (EXP-01), then test whether OCT-2.5D's clear win in oct-only mode
+transfers to the full fusion model (EXP-02). Stopped after EXP-02, per the
+plan's explicit "STOP HERE" instruction.
+
+### Completed
+1. **EXP-01**: froze `experiments/baseline_v1/` — a fresh 5-fold fusion
+   (single-slice OCT) CV run, same seed/folds/hyperparameters as the
+   original `cv-run-1`, but under the current evaluation code so Kappa/QWK
+   are available (they didn't exist when `cv-run-1` ran). Result: accuracy
+   0.731±0.072, balanced_accuracy 0.691±0.071, macro_f1 0.681±0.077,
+   roc_auc 0.875±0.037, kappa 0.577±0.112, qwk 0.775±0.071. Noted (not
+   hidden) that these numbers differ slightly from `cv-run-1`'s original
+   fusion result despite the identical seed — expected GPU
+   non-determinism, documented in `experiments/baseline_v1/metadata.json`.
+2. **EXP-02**: ran the pre-training checklist from the plan (smoke test,
+   3-channel shape, neighbor-slice distinctness, edge-clamp behavior,
+   single-slice-path-unchanged, GPU/TensorBoard confirmation), then the
+   real 5-fold fusion+2.5D CV run on identical folds.
+
+### Real result — and it's a genuine mixed finding, not a clean win
+Unlike OCT-only 2.5D (clean win on every metric, see the prior entry),
+**2.5D did not clearly improve the fusion model**: accuracy/balanced
+accuracy/macro F1/Kappa are all slightly lower with 2.5D (though within
+overlapping std ranges), while ROC-AUC and QWK are essentially tied —
+with 2.5D showing meaningfully *lower* fold-to-fold variance on ROC-AUC
+(std 0.016 vs 0.037) and QWK (0.053 vs 0.071). Per the plan's own decision
+rule (don't manufacture a winner from ambiguous results, weigh macro F1/
+balanced accuracy alongside QWK/ROC-AUC), this is recorded as **inconclusive
+— not adopted** for fusion mode, called out explicitly as a mixed/negative
+result rather than reframed as a win. Full numbers and the decision
+rationale: `EXPERIMENTS.md` → `fusion_baseline_v1` / `fusion_2p5d_v1`.
+
+### Files changed
+`experiments/baseline_v1/{config,metadata,metrics}.json`,
+`experiments/baseline_v1/README.md` (new), `EXPERIMENTS.md`, `PROGRESS.md`.
+`results/cv_fusion_baseline_v1/`, `results/cv_fusion_2p5d_v1/` (new, real,
+5 folds each + summary.json).
+
+### Problems / blockers
+None blocking, but a genuine open question: EXP-03 (12-slice 2.5D) in the
+plan's sequence assumes 2.5D is the carried-forward OCT configuration —
+this result means that assumption isn't clean-cut for fusion mode. Flagged
+in `EXPERIMENTS.md`'s "Next experiment" note rather than deciding
+unilaterally which OCT representation EXP-03 should build on.
+
+### Next action
+Per the plan: **stop here, do not start EXP-03 until this is reviewed** —
+specifically, decide whether EXP-03 (denser slices) should vary slice
+count on top of `single` or `2.5d`, given EXP-02's mixed result for fusion.
+
+---
+
+## 2026-09-27 (improvement-plan step 32: repo audit, dataset-expansion blocker found, metric expansion + live TensorBoard)
+
+Working from `MM_RETINA_CLAUDE_IMPROVEMENT_PLAN.md`'s step-32 instruction:
+report on the existing repo, then implement only dataset audit + metric
+expansion + TensorBoard live logging (not the new architecture work) before
+proceeding further.
+
+### Repository inspection (no code changes made during this phase)
+Confirmed the pipeline described in earlier entries is exactly what's on
+disk: `training/{data,model,losses,train_multimodal,evaluate,cross_validate,
+split_gamma}.py`, existing single-split baseline checkpoints/results, and
+the completed 5-fold CV in `results/cv/`. No TensorBoard usage anywhere;
+`tensorboard` package wasn't even installed. Metrics before this entry:
+accuracy, balanced accuracy, macro F1, per-class P/R/F1, confusion matrix,
+one-vs-rest macro ROC-AUC — no Cohen's Kappa, no QWK.
+
+### Real blocker found: the plan's Section 2 premise doesn't hold
+The plan asks to expand to the "complete GAMMA dataset, ~300 samples."
+Inspected `dataset/GAMMA/grading/Glaucoma_grading/`: it has a `training/`
+split (100 samples, **with** a ground-truth grade file) and a `testing/`
+split (100 more raw samples, **no ground-truth file anywhere** — checked
+every candidate filename pattern). This matches the public GAMMA challenge
+structure: only the 100-sample training split ever had public grade labels;
+validation/testing labels are withheld for the competition leaderboard.
+**Conclusion: the full labeled dataset available for supervised
+training/evaluation is exactly the 100 samples already in the manifest —
+it cannot be expanded to ~300 without labels that don't exist in this
+download.** Encoded this as a real, verifiable check
+(`_check_full_dataset_availability` in `dataset/gamma_audit.py`) rather
+than asserting it in prose only — reran the audit, confirmed the finding
+programmatically (`dataset/audit_report.json` → `full_dataset_availability`).
+
+### Completed
+1. **Metric expansion.** Added Cohen's Kappa and Quadratic Weighted Kappa
+   (QWK) to `training/evaluate.py`, refactored into a shared
+   `compute_classification_metrics()` so `evaluate.py` (test-set) and
+   `train_multimodal.py` (per-epoch validation) can never silently diverge
+   on how a metric is defined. Documented the ROC-AUC averaging choice
+   (one-vs-rest, macro) inline, per the plan's requirement not to leave that
+   ambiguous. `cross_validate.py`'s fold aggregation now includes kappa/QWK
+   too.
+2. **TensorBoard live logging**, added to `train_multimodal.py`:
+   - Per-epoch scalars: train/{loss,accuracy,macro_f1}, val/{loss,accuracy,
+     balanced_accuracy,macro_f1,roc_auc,cohen_kappa,quadratic_weighted_kappa},
+     learning_rate, epoch_time_seconds, gpu_memory_mb.
+   - Live confusion matrix (matplotlib figure logged via `add_figure`).
+   - A **fixed set of 8 validation samples**, same ones every epoch
+     (deterministic — first 8 by dataset order for a given split file):
+     de-normalized fundus image, de-normalized middle OCT slice, and a text
+     summary of true label / predicted label / per-class probabilities.
+   - `runs/<run-name>/` per run; added `scripts/start_tensorboard.{sh,bat}`
+     and `runs/` to `.gitignore` (large binary event files, regenerated).
+   - New `--checkpoint-metric` flag (`val_loss` default — preserves the
+     existing baseline's exact behavior; `quadratic_weighted_kappa` and
+     others available, matching the plan's Section 23 preference for QWK
+     on *new* runs without silently changing what the already-reported
+     baseline numbers mean). Checkpoints now also save optimizer/scheduler
+     state, per Section 23.
+   - `cross_validate.py` gained matching `--checkpoint-metric` and an opt-in
+     `--tensorboard` flag (off by default for the 15-run CV sweep, since a
+     wall of live logs isn't useful there — plain `train_multimodal.py` is
+     the live-monitored single-run path).
+
+### Real testing performed (not just "should work")
+- Reran the existing `--smoke-test` path unchanged — still passes byte-for-
+  byte the same forward/backward behavior as before this change.
+- Ran a real 2-epoch training job (`tb_smoke_test`, fusion, tiny config) end
+  to end. Verified via `tensorboard.backend.event_processing` that all 24
+  expected scalar/figure/image/text tags actually landed in the event file
+  (not just "no crash").
+- Started the real TensorBoard server (`tensorboard --logdir runs`),
+  opened it in a real browser, and visually confirmed: the scalar dashboard
+  updates, the confusion-matrix figure renders with correct axis labels and
+  real counts, and the fixed-sample panel shows an actual (correctly
+  de-normalized, recognizable) fundus photo with its prediction text.
+- Deleted the smoke-test run's TensorBoard logs and checkpoint afterward —
+  not committed, not left as clutter.
+
+### Files changed
+`dataset/gamma_audit.py`, `dataset/audit_report.json` (regenerated),
+`training/evaluate.py`, `training/train_multimodal.py`,
+`training/cross_validate.py`, `scripts/start_tensorboard.sh` (new),
+`scripts/start_tensorboard.bat` (new), `.gitignore`, `PROGRESS.md`.
+No changes to `model.py`, `losses.py`, `data.py`, or the split logic — none
+of that was needed for this phase, per the plan's own gating.
+
+### Problems / blockers
+The dataset-expansion blocker above is real and unresolved: Section 2 of
+the improvement plan cannot be carried out as written with what's on disk.
+Options if this is pursued further: (a) proceed with rigorous work on the
+existing 100 labeled samples (what the rest of the plan's experiment list
+mostly doesn't actually depend on sample count), (b) source the withheld
+labels from elsewhere if the user has legitimate access, (c) explicitly
+retarget the plan's dataset-size ambitions to 100 samples. Not decided here
+— this is the user's call, not something to resolve unilaterally.
+
+### Next action
+Per the plan's implementation order, the next gated items are OCT 2.5D
+(Experiment OCT-2) and denser slice sampling (OCT-3) — but only after the
+user has weighed in on the dataset-size blocker above, since it changes the
+practical scope of "run the full-dataset baseline" (plan Section 29/Step 7).
+
+---
+
+## 2026-09-27 (follow-up: Experiment OCT-2 implemented and run for real, oct-only)
+
+User said to proceed with the dataset-size blocker unresolved and go
+straight to Experiment OCT-2 (2.5D OCT representation).
+
+### Completed
+- Implemented `--oct-representation {single,2.5d}` across `data.py`
+  (stacks B-scans `[i-1, i, i+1]` as 3 channels via `Image.merge("RGB", ...)`
+  so the existing augmentation pipeline applies identically to all 3;
+  edge slices clamp to the nearest valid index), `model.py`
+  (`OCTVolumeEncoder`/`GammaMultimodalModel` gained `oct_in_chans`),
+  `train_multimodal.py`, `evaluate.py`, `cross_validate.py`. Default
+  (`single`) verified byte-identical to the pre-existing baseline (same
+  smoke-test loss, 1.1517, before and after).
+- Ran the real 5-fold CV comparison (oct-only, matched folds/hyperparameters
+  against the existing `cv-run-1` OCT baseline) — see `EXPERIMENTS.md`
+  `oct25d-cv-run-1` for full per-fold numbers.
+- **Result: 2.5D beats single-channel on every directly comparable metric**
+  (accuracy 0.680±0.058 vs 0.661±0.089, balanced_accuracy 0.608±0.085 vs
+  0.599±0.076, macro_f1 0.602±0.089 vs 0.587±0.090, roc_auc 0.863±0.035 vs
+  0.842±0.041), with slightly lower fold-to-fold variance too. Real but
+  modest (~0.02 mean gain) — not oversold as a dramatic win.
+
+### Problems found and fixed live during this work (not hidden)
+1. First launch attempt used a nested `nohup ... &` inside an
+   already-backgrounded shell call — this decoupled the real training
+   process from the session's own background-task tracking, so no
+   completion notification would ever have fired. Fixed by launching the
+   training command directly as the tracked background process on the
+   second attempt.
+2. Python's stdout was fully block-buffered under file redirection, so the
+   live log file looked frozen (0 lines) even while training was
+   genuinely progressing (confirmed separately via GPU utilization and
+   growing files on disk) — fixed with `python -u`.
+3. User asked for actual live monitoring (not just a static log) — added
+   `--tensorboard` to the CV run (off by default for CV sweeps, on by
+   request here), started the real TensorBoard server, and visually
+   verified in a real browser that live scalars were updating epoch to
+   epoch.
+4. User correctly flagged that GPU utilization looked low (~20-30%,
+   2.2/6GB VRAM) and asked to fix it. Tried `--workers 4` — this made
+   epoch time *worse* (71s vs ~22s), because Windows respawns DataLoader
+   worker processes every epoch by default (no `persistent_workers`), and
+   that spawn cost dominates for a 79-sample fold with only ~20
+   batches/epoch. Diagnosed correctly rather than assuming more workers
+   must help; reverted to `--workers 0` (confirmed faster) and explained
+   why low GPU utilization here is an expected property of this specific
+   workload (small batch, small backbone, small dataset — not something
+   data-loading parallelism fixes) rather than silently declaring the
+   problem solved.
+
+### Files changed
+`training/data.py`, `training/model.py`, `training/train_multimodal.py`,
+`training/evaluate.py`, `training/cross_validate.py`, `EXPERIMENTS.md`,
+`PROGRESS.md`. `results/cv_oct25d/` (new, real, 5 folds + summary.json).
+
+### Next action
+1. Decide whether to adopt 2.5D as the new OCT default going forward
+   (modest, consistent real improvement) or run it once more with a second
+   seed before committing, given n=5 folds' std values carry real
+   uncertainty on their own.
+2. Per the plan's order: Experiment OCT-3 (denser slice sampling:
+   12/16/24 slices) is next, then the stronger-fundus-backbone experiment
+   — still gated on the user's call about the 100-vs-300-sample dataset
+   question from the previous entry.
+3. If 2.5D is adopted, it should also be tried in `fusion` mode (this run
+   only tested oct-only) for a complete before/after comparison.
+
+---
+
 ## 2026-09-17 08:40 (follow-up: checkpoint disclosure, real multi-slice OCT, Grad-CAM)
 
 Follow-up to the previous entry, addressing a review of the live demo.
