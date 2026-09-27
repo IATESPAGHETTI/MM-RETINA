@@ -70,7 +70,9 @@ def health():
     }
 
 
-async def _read_and_validate_image(upload: Optional[UploadFile], field_name: str) -> Optional[Image.Image]:
+async def _read_and_validate_image(
+    upload: Optional[UploadFile], field_name: str, expected_modality: Optional[str] = None
+) -> Optional[Image.Image]:
     if upload is None:
         return None
     if upload.content_type not in ALLOWED_CONTENT_TYPES:
@@ -92,6 +94,10 @@ async def _read_and_validate_image(upload: Optional[UploadFile], field_name: str
     # Color-mode conversion (RGB for fundus, grayscale for OCT) happens in
     # inference.py, matching training/data.py's per-modality handling —
     # don't force a single mode here for both.
+    if expected_modality is not None:
+        sanity_error = inference.check_modality_sanity(img, expected_modality)
+        if sanity_error is not None:
+            raise HTTPException(status_code=400, detail=f"{field_name}: {sanity_error}")
     return img
 
 
@@ -120,13 +126,14 @@ async def predict(
         log.warning("[%s] rejected: invalid modality=%r", request_id, modality)
         raise HTTPException(status_code=400, detail=f"modality must be one of {sorted(VALID_MODALITIES)}")
 
-    fundus_img = await _read_and_validate_image(fundus, "fundus")
-    oct_img = await _read_and_validate_image(oct, "oct")
+    fundus_img = await _read_and_validate_image(fundus, "fundus", expected_modality="fundus")
+    oct_img = await _read_and_validate_image(oct, "oct", expected_modality="oct")
 
     oct_slice_imgs: Optional[list] = None
     if oct_slices:
         oct_slice_imgs = [
-            await _read_and_validate_image(f, f"oct_slices[{i}]") for i, f in enumerate(oct_slices)
+            await _read_and_validate_image(f, f"oct_slices[{i}]", expected_modality="oct")
+            for i, f in enumerate(oct_slices)
         ]
         if modality in ("oct", "fusion"):
             expected = inference.expected_oct_slices(modality)

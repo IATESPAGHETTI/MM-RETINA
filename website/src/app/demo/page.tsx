@@ -286,7 +286,12 @@ export default function DemoPage() {
                     )}
                   </div>
                 ) : (
-                  <span className="text-sm font-medium text-ink">OCT B-scan</span>
+                  <>
+                    <span className="text-sm font-medium text-ink">OCT B-scan</span>
+                    <span className="text-[10px] text-ink-faint">
+                      Grayscale cross-section — color photos are rejected
+                    </span>
+                  </>
                 )}
                 <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 text-xs">
                   <label className="cursor-pointer text-ink-muted underline underline-offset-4 hover:text-ink">

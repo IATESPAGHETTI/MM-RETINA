@@ -38,7 +38,7 @@ import time
 from pathlib import Path
 
 import torch
-from PIL import Image
+from PIL import Image, ImageStat
 
 import gradcam
 
@@ -79,6 +79,41 @@ def load_all_models() -> dict:
 
 def is_ready(modality: str) -> bool:
     return modality in _models
+
+
+# Mean HSV saturation (0-1) below/above which an upload is rejected as the
+# wrong kind of image for its slot. Real GAMMA fundus photos are strongly
+# red/orange and land well above 0.25 saturation; real OCT B-scans are
+# near-grayscale even when stored as RGB/JPEG and land well below 0.12.
+# This is a cheap sanity gate against the obvious wrong-modality mistake
+# (e.g. uploading a fundus photo into the OCT slot), not a trained
+# classifier — it won't catch every adversarial case, but it stops the
+# model from silently producing a confident-looking prediction on an
+# image that plainly isn't the modality it was trained on.
+_FUNDUS_MIN_SATURATION = 0.15
+_OCT_MAX_SATURATION = 0.20
+
+
+def _mean_saturation(img: Image.Image) -> float:
+    hsv = img.convert("RGB").resize((64, 64)).convert("HSV")
+    return ImageStat.Stat(hsv).mean[1] / 255.0
+
+
+def check_modality_sanity(img: Image.Image, expected: str) -> str | None:
+    """Returns an error message if `img` doesn't look like the expected
+    modality (`"fundus"` or `"oct"`), else None."""
+    saturation = _mean_saturation(img)
+    if expected == "fundus" and saturation < _FUNDUS_MIN_SATURATION:
+        return (
+            f"this looks like a grayscale/near-grayscale image (saturation={saturation:.2f}), "
+            "not a color fundus photo — check you uploaded the right file"
+        )
+    if expected == "oct" and saturation > _OCT_MAX_SATURATION:
+        return (
+            f"this looks too color-saturated (saturation={saturation:.2f}) to be an OCT B-scan — "
+            "check you didn't upload a fundus photo into the OCT slot"
+        )
+    return None
 
 
 def expected_oct_slices(modality: str) -> int | None:
