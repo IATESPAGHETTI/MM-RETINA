@@ -1,0 +1,4 @@
+,pred_mild,pred_moderate,pred_severe
+true_mild,15,1,7
+true_moderate,3,0,2
+true_severe,0,0,6

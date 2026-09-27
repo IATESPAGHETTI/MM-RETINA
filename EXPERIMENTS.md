@@ -5,6 +5,387 @@ failed ones — a failed run is still real information.
 
 ---
 
+## Experiment: m01 (EXP-M01) — Multi-Dataset Shared Representation Learning
+
+### Goal
+
+Per MM_RETINA_MULTIDATASET_REPRESENTATION_AND_CASE_EXAMPLES.md: investigate
+whether GAMMA, HVF, and RNFL/GCC — three separate cohorts with different
+identifiers, label taxonomies, and modalities, with no valid cross-dataset
+patient pairing (see the provenance and safe-strategy docs) — can
+contribute to a **shared representation** without ever fabricating a
+merged patient table. The frozen GAMMA benchmark (EXP-05/06,
+`results/cv_fusion_effnetb0_v1/`) was not touched.
+
+### New pieces built for this experiment
+
+- `dataset/rnfl_gcc_feature_extraction.py` — first structured feature
+  export for the RNFL/GCC workbook (171 eye-level rows, no patient ID).
+  Features used: `Average_RNFL`, 4 RNFL regional sectors, `Average_GCC`,
+  4 GCC regional sectors, age, gender — exactly what the design doc
+  specifies for the RNFL/GCC branch.
+- `training/extract_gamma_embeddings.py` — extracts a frozen 256-dim
+  fused Fundus+OCT embedding per GAMMA patient from `checkpoints/
+  fusion_run1.pt` (resnet18 fundus + resnet18 OCT). **This is a different,
+  weaker checkpoint than the frozen EXP-05/06 benchmark** (EfficientNet-B0
+  fundus) — cross_validate.py deletes each CV fold's checkpoint by default,
+  so none of the actual EXP-05/06 per-fold checkpoints exist on disk
+  anymore. Used here purely as a fixed feature extractor for a new
+  downstream probe, never as a re-measurement of EXP-05/06.
+- `training/train_multidataset_representation.py` — the M01-A/M01-B
+  architecture and training loop (see below).
+
+### Architecture
+
+Three independent branches, each `encoder -> trunk -> head`, one branch
+per dataset:
+
+```text
+GAMMA embedding (256-dim, frozen)  -> Encoder -> Trunk -> Head -> Normal/Early/Progressive
+HVF C01b features (6-dim, no-proxy) -> Encoder -> Trunk -> Head -> Mild/Moderate/Severe
+RNFL/GCC features (13-dim)          -> Encoder -> Trunk -> Head -> Mild/Moderate/Severe
+```
+
+The **HVF branch deliberately uses the C01b no-proxy feature set**
+(`false_positive_pct`, `false_negative_pct`, `fixation_loss_ratio`,
+`test_duration_min`, `refraction_used`, `age_years`) — `md_db`/`psd_db`/
+`vfi_pct` are excluded per the design doc's explicit instruction, since
+EXP-C01b already showed those are near-duplicates of the label-assignment
+criteria.
+
+Two variants of the SAME architecture, same folds, same code:
+
+- **M01-A (independent)** — each dataset gets its own private `Trunk`
+  instance; no weight sharing at all. Baseline/control.
+- **M01-B (shared)** — one `Trunk` instance is referenced by all three
+  branches. Each training step still computes each dataset's loss from
+  only that dataset's own batch/labels (no cross-dataset pairing, ever);
+  the three losses are summed before one `backward()` call, so only the
+  shared trunk's gradients mix across datasets — never the data itself.
+
+Folds, per dataset (identical to their respective earlier experiments):
+
+- GAMMA: patient-level 5-fold CV (`cross_validate.make_folds`, seed 42 —
+  same fold-construction code as EXP-05/06, reused not reimplemented).
+- HVF: patient-grouped 5-fold `GroupKFold` (identical to EXP-C01/C01b).
+- RNFL/GCC: **plain stratified 5-fold `StratifiedKFold`, NOT
+  patient-grouped** — there is no patient ID to group by
+  (`dataset/rnfl_gcc_provenance_audit.md`). This is a standing limitation
+  of every RNFL/GCC number below, not an oversight: some risk of splitting
+  fellow eyes of the same unidentifiable real patient across folds remains.
+
+Smoke-tested (`--smoke-test`, 1 fold/5 epochs) before the real run per
+project convention; real run used 5 folds, up to 400 epochs with early
+stopping (patience 40) on summed validation loss, Adam, seed 42.
+
+### Results (mean ± std, 5 folds)
+
+| Dataset | Metric | M01-A (independent) | M01-B (shared) |
+|---|---|---:|---:|
+| GAMMA† | Accuracy | 0.800 ± 0.071 | 0.779 ± 0.078 |
+| GAMMA† | Balanced Accuracy | 0.774 ± 0.073 | 0.744 ± 0.085 |
+| GAMMA† | QWK | 0.851 ± 0.058 | 0.832 ± 0.063 |
+| HVF | Accuracy | 0.387 ± 0.072 | 0.446 ± 0.065 |
+| HVF | Balanced Accuracy | 0.356 ± 0.074 | 0.406 ± 0.088 |
+| HVF | Cohen's Kappa | 0.036 ± 0.102 | 0.125 ± 0.084 |
+| HVF | QWK | 0.057 ± 0.145 | 0.179 ± 0.076 |
+| RNFL/GCC‡ | Accuracy | 0.614 ± 0.101 | 0.684 ± 0.075 |
+| RNFL/GCC‡ | Balanced Accuracy | 0.592 ± 0.102 | 0.637 ± 0.119 |
+| RNFL/GCC‡ | Cohen's Kappa | 0.356 ± 0.131 | 0.442 ± 0.125 |
+| RNFL/GCC‡ | QWK | 0.443 ± 0.152 | 0.531 ± 0.153 |
+
+† **GAMMA numbers here are NOT the frozen EXP-05/06 benchmark** — they are
+a small MLP probe on top of a frozen embedding from a weaker (resnet18)
+checkpoint (see above). 0.820/0.924 (EXP-05/06) remains the official
+number; these ~0.78–0.80 numbers only compare M01-A vs. M01-B to each
+other.
+‡ RNFL/GCC numbers carry the plain-stratified-split limitation above.
+
+Full per-fold metrics, confusion matrices, and predictions:
+`results/m01/{m01a,m01b}/{gamma,hvf,rnfl_gcc}/fold{0-4}/`. Aggregate:
+`results/m01/summary.json`. Config/seeds: `results/m01/config.json`.
+TensorBoard: `runs/m01/`.
+
+### Interpretation
+
+A shared trunk (M01-B) **cost** GAMMA a small amount (QWK 0.851 → 0.832,
+Balanced Accuracy 0.774 → 0.744) while modestly **helping** both clinical
+datasets (HVF Kappa 0.036 → 0.125; RNFL/GCC Kappa 0.356 → 0.442). Given
+the wide per-fold standard deviations relative to the effect sizes (e.g.
+HVF QWK's std of 0.076–0.145 is comparable to the mean shift itself), this
+is **suggestive, not conclusive** evidence for Outcome B from the design
+doc ("the shared representation does not clearly improve metrics, but the
+experiment demonstrates that multi-dataset learning is feasible without
+merging patient identities") leaning slightly toward a weak version of
+Outcome A for the two smaller clinical datasets. It should not be reported
+as "shared representation learning improves glaucoma classification" —
+the effect is small, inconsistent in direction across datasets, and HVF's
+absolute performance (Kappa 0.125) remains far below anything clinically
+useful, consistent with EXP-C01b's finding that the non-proxy HVF fields
+carry little independent signal to begin with.
+
+### What this experiment does and does not establish
+
+- Does establish: three datasets with incompatible identifiers and label
+  taxonomies can be trained through a literally shared set of weights
+  without ever constructing a fabricated patient pairing, and doing so is
+  not obviously harmful to any of the three (GAMMA's small regression is
+  within its own fold-to-fold noise).
+- Does NOT establish: that this shared representation is clinically useful
+  or that it improves the frozen GAMMA benchmark — GAMMA's own frozen
+  number is untouched, and this experiment's GAMMA branch uses a
+  deliberately different, weaker frozen embedding for probe purposes only.
+- Does NOT establish anything further about RNFL/GCC's real-world validity
+  — its improvement under M01-B is still built on eye-level rows with no
+  patient grouping, per the standing limitation above.
+
+### M01-C (contrastive/alignment) — not attempted
+
+Per the design doc, M01-C should only be attempted after M01-B is shown
+stable and worthwhile. Given the modest, mixed-direction effect above and
+the very small dataset sizes (100/168/171), a further alignment objective
+was judged not yet justified — logged here as a deliberate stopping point,
+not an oversight.
+
+### Case examples
+
+`results/case_examples/CASE_EXAMPLES.md` (built by
+`results/case_examples/build_case_examples.py`) — real held-out prediction
+examples for GAMMA (from the actual frozen EXP-05/06 CV predictions, with
+rendered fundus+OCT visual panels) and HVF (from EXP-C01 and EXP-C01b,
+explicitly labeled by which feature set was used), plus the Patient
+1028746 asymmetric-eye data-quality example, confirmed to sit in a single
+held-out fold with no cross-fold leakage.
+
+---
+
+## Experiment: hvf_c01 (EXP-C01) — Real-World HVF Severity Baseline
+
+### Cohort — separate from the GAMMA benchmark, do not conflate
+
+This is a **new, standalone clinical study**, not an extension of the
+frozen GAMMA Fundus+OCT reference (EXP-01 → EXP-06, below). It uses a
+different real-world cohort with a different label taxonomy:
+
+```text
+168 real HVF eyes / 90 real patients
+Source: Zeiss Humphrey Field Analyzer "Single Field Analysis" DICOM exports
+        (Institution: Medical Research Foundation)
+Labels: Mild / Moderate / Severe  (eye-level — NOT patient-level; 27/90
+        patients have different severity between their two eyes)
+Eye-level class distribution: Mild 109 (64.9%), Moderate 25 (14.9%),
+        Severe 34 (20.2%)
+```
+
+The GAMMA cohort (100 patients, Fundus+OCT, Normal/Early/Progressive) has
+**0/100 coverage** for HVF or RNFL/GCC — confirmed by direct inspection,
+not assumed. This experiment does not use, modify, or report against the
+GAMMA benchmark in any way. RNFL/GCC (171 eye-level Excel rows) was
+**deliberately excluded**: it has no patient ID, no eye-visit key, and no
+date column, so no verifiable link to these HVF records exists (see
+MM_RETINA_SAFE_MULTIMODAL_STRATEGY.md — heuristic age/gender/eye matching
+and row-order matching were both explicitly ruled out as fabricating
+pairs).
+
+### Feature extraction
+
+`dataset/hvf_feature_extraction.py` parses all 168 DICOM files and pulls
+structured fields from the Zeiss private tag block `99CZM_HFA_EMR_2`
+(group 0x7717) — every field was confirmed present in 100% (or ~94%) of
+files before use; see `dataset/hvf_field_confidence.md` for the per-field
+confidence rating and the value-pattern evidence used to infer each tag's
+clinical meaning (Zeiss does not publish this private dictionary).
+
+Features used: `md_db`, `psd_db`, `vfi_pct`, `false_positive_pct`,
+`false_negative_pct`, `fixation_loss_ratio`, `test_duration_min`,
+`refraction_used`, `age_years`, `sex` (one-hot). **Deliberately excluded:**
+`overall_result`, `md_significance`, `psd_significance` — these are
+expert-derived categorical buckets of MD/PSD and are themselves close
+restatements of the severity label; including them would test label
+leakage, not HVF signal.
+
+**Important caveat on what a strong result here means:** MD and VFI are
+the same indices standard clinical staging criteria (e.g.
+Hodapp-Anderson-Parrish-style MD cutoffs) commonly use to assign glaucoma
+severity in the first place. A model that recovers Mild/Moderate/Severe
+from MD/VFI is very likely partly reconstructing the labeling rule itself,
+not discovering independent predictive signal. This result should be read
+as "the extracted HVF indices are internally consistent with the assigned
+severity" (a sanity check that the DICOM field-mapping guesses in
+`hvf_field_confidence.md` are very likely correct — MD/VFI both move in
+the clinically correct direction with severity: mean MD −2.6 dB → −8.2 dB
+→ −19.8 dB, mean VFI 95.7% → 81.3% → 42.9% for Mild → Moderate → Severe),
+**not** as evidence that a downstream fusion model would gain comparably
+strong signal from HVF once combined with imaging in a real multimodal
+setup.
+
+### Method
+
+- Unit of prediction: **eye**, not patient (severity is an eye-level
+  label; collapsing to patient-level would destroy real information and
+  require an unjustified consistency assumption — see the safe-strategy
+  doc's "eye-level labeling rule").
+- Split: patient-grouped 5-fold CV (`sklearn.GroupKFold` on `patient_id`)
+  — both eyes of a patient are always in the same fold; a hard assertion
+  in `train_hvf_baseline.py` raises if any fold leaks a patient.
+- Missing-value imputation (median) and feature scaling (StandardScaler)
+  are fit on the training fold only and applied unchanged to that fold's
+  validation eyes.
+- Class weighting (`class_weight="balanced"` / a weighted
+  `CrossEntropyLoss`) is derived from the training fold's label
+  distribution only; validation distributions are untouched.
+- Models, weakest/simplest first: Logistic Regression → Random Forest
+  (n_estimators=300, max_depth=5) → small MLP (9+2→32→16→3, dropout 0.3,
+  Adam, early stopping on val loss, patience 30). No Transformer, no large
+  model — the question was whether the tabular HVF indices carry signal at
+  all, per the doc's explicit instruction.
+- TensorBoard logging: `runs/hvf_c01/` (per-fold train/val loss and val
+  accuracy for the MLP).
+
+### Results (mean ± std, 5-fold patient-grouped CV)
+
+| Metric | Logistic Regression | Random Forest | Small MLP |
+|---|---:|---:|---:|
+| Accuracy | 0.905 ± 0.052 | 0.964 ± 0.033 | 0.905 ± 0.044 |
+| Balanced Accuracy | 0.857 ± 0.069 | 0.928 ± 0.076 | 0.864 ± 0.086 |
+| Macro F1 | 0.854 ± 0.071 | 0.939 ± 0.061 | 0.853 ± 0.082 |
+| ROC-AUC (OvR macro) | 0.959 ± 0.026 | 0.999 ± 0.001 | 0.959 ± 0.022 |
+| Cohen's Kappa | 0.810 ± 0.112 | 0.930 ± 0.064 | 0.815 ± 0.089 |
+| QWK | 0.921 ± 0.054 | 0.972 ± 0.027 | 0.925 ± 0.036 |
+
+Aggregated (summed across folds) confusion matrices — confusion is almost
+entirely between adjacent severities (Mild↔Moderate); **no model ever
+confused Mild with Severe**:
+
+```text
+Logistic Regression        true_mild  true_moderate  true_severe
+  pred_mild                    103            6             0
+  pred_moderate                  6           17             2
+  pred_severe                    0            2            32
+
+Random Forest               true_mild  true_moderate  true_severe
+  pred_mild                    108            4             0
+  pred_moderate                  1           20             0
+  pred_severe                    0            1            34
+
+Small MLP                   true_mild  true_moderate  true_severe
+  pred_mild                    101            5             0
+  pred_moderate                  8           18             1
+  pred_severe                    0            2            33
+```
+
+Per-fold metrics, per-fold predictions, and per-fold confusion matrices are
+saved under `results/hvf_c01/<model>/fold<k>/`; the aggregate is
+`results/hvf_c01/summary.json`.
+
+### What this experiment does and does not establish
+
+- Does establish: the extracted HVF structured indices (MD, PSD, VFI,
+  catch-trial rates) are strongly, monotonically, and clinically
+  consistently associated with the assigned Mild/Moderate/Severe label in
+  this real 90-patient cohort — a useful sanity check on both the field
+  extraction and the label quality.
+- Does NOT establish: that HVF would add incremental signal on top of
+  Fundus+OCT in a genuine multimodal model, for GAMMA or for any other
+  cohort — no such paired cohort exists in this repository.
+- Does NOT establish: anything about RNFL/GCC, which remains an unlinked,
+  exploratory-only dataset (see MM_RETINA_SAFE_MULTIMODAL_STRATEGY.md
+  §14/§15) until a real patient/eye/date key is provided by the data
+  source.
+
+### Next step (conditional, not started)
+
+If a real Patient ID + eye + examination-date mapping between the RNFL/GCC
+Excel and these HVF DICOMs is obtained from the data provider, run
+EXP-C02 (RNFL/GCC-only) and EXP-C03 (HVF+RNFL/GCC fusion) as a controlled
+ablation, per MM_RETINA_SAFE_MULTIMODAL_STRATEGY.md §8. Not attempted here
+— no such mapping currently exists.
+
+---
+
+## Experiment: hvf_c01b (EXP-C01b) — HVF baseline with severity-proxy features removed
+
+### Hypothesis
+
+EXP-C01's own caveat flagged that `md_db`, `psd_db`, and `vfi_pct` are not
+just correlated with Mild/Moderate/Severe — they are (or closely
+approximate) the actual indices standard clinical criteria use to *assign*
+that label. If EXP-C01's strong scores came mostly from those three
+fields, removing them should collapse performance toward chance. If
+meaningful signal survives, the remaining catch-trial/reliability/
+demographic fields carry genuine independent information about severity.
+
+### Change
+
+Identical pipeline, cohort, split, and code to EXP-C01
+(`training/train_hvf_baseline.py`, now parameterized by
+`--feature-set {full,no_proxy}` instead of duplicated into a new script —
+`full` reproduces EXP-C01 exactly, byte-for-byte on every metric, which was
+verified by rerunning it before touching anything). `no_proxy` drops
+`md_db`, `psd_db`, `vfi_pct` and keeps: `false_positive_pct`,
+`false_negative_pct`, `fixation_loss_ratio`, `test_duration_min`,
+`refraction_used`, `age_years`, `sex`. Same patient-grouped 5-fold CV,
+same fold-isolated imputation/scaling/class-weighting, same three models
+(Logistic Regression, Random Forest, small MLP). The frozen GAMMA
+benchmark was not touched.
+
+### Results (mean ± std, 5-fold patient-grouped CV)
+
+| Metric | Logistic Regression | Random Forest | Small MLP |
+|---|---:|---:|---:|
+| Accuracy | 0.416 ± 0.066 | 0.595 ± 0.021 | 0.380 ± 0.123 |
+| Balanced Accuracy | 0.369 ± 0.060 | 0.362 ± 0.049 | 0.325 ± 0.032 |
+| Macro F1 | 0.334 ± 0.056 | 0.344 ± 0.061 | 0.278 ± 0.099 |
+| ROC-AUC (OvR macro) | 0.555 ± 0.065 | 0.602 ± 0.061 | 0.567 ± 0.038 |
+| Cohen's Kappa | 0.072 ± 0.092 | 0.086 ± 0.070 | 0.054 ± 0.065 |
+| QWK | 0.100 ± 0.126 | 0.140 ± 0.149 | 0.164 ± 0.140 |
+
+For context, chance-level balanced accuracy on 3 classes is 0.333 and
+chance-level kappa is 0. Every model here lands within roughly one
+standard deviation of chance on kappa/QWK; Random Forest's 0.595 raw
+accuracy is a majority-class artifact (Mild is 64.9% of eyes), not real
+skill — its balanced accuracy (0.362) and kappa (0.086) tell the honest
+story.
+
+Aggregated confusion matrices — Random Forest now predicts "Mild" for
+137/168 eyes regardless of true class, the signature of a model with
+nothing left to key on but the base rate:
+
+```text
+Random Forest (no_proxy)   true_mild  true_moderate  true_severe
+  pred_mild                    93            19            25
+  pred_moderate                 9             2             4
+  pred_severe                   7             4             5
+```
+
+### Conclusion
+
+Removing `md_db`/`psd_db`/`vfi_pct` collapses performance from
+QWK ≈ 0.92–0.97 (EXP-C01) to QWK ≈ 0.10–0.16 (EXP-C01b) — essentially
+chance. **Almost all of EXP-C01's predictive power came from the three
+fields that overlap with the label-assignment criteria itself**, not from
+independent HVF reliability or functional-test measurements. The
+catch-trial error rates, fixation-loss ratio, test duration, refraction,
+age, and sex carry little to no severity signal on their own in this
+90-patient cohort.
+
+This does not mean HVF is useless — MD/PSD/VFI are exactly the clinically
+meaningful part of an HVF report, and EXP-C01's result (with the proxy
+caveat already on record) stands as a valid sanity check that the DICOM
+field extraction is correct. It does mean this cohort's *non-staging*
+HVF fields are not, on their own, a source of extra signal worth adding
+to a future fusion model — if HVF is ever paired with Fundus/OCT for a
+real cohort, MD/PSD/VFI (not the reliability indices) are the fields
+worth including.
+
+### Next step
+
+None triggered by this result specifically. Still blocked, as before, on
+obtaining a real patient/eye/date mapping to RNFL/GCC, and on locating
+Fundus/OCT for this same 90-patient population.
+
+---
+
 ## Experiment: fusion_token_v1 (EXP-06)
 
 ### Hypothesis

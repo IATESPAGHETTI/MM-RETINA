@@ -6,6 +6,73 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-09-27 (EXP-M01 — multi-dataset shared representation + case examples)
+
+### Completed
+
+Following the data-first audit trail (RNFL/GCC and HVF found to have no
+valid patient-level link to GAMMA or to each other — see
+`dataset/rnfl_gcc_provenance_audit.md`), implemented EXP-M01: a
+representation-learning experiment that trains GAMMA, HVF, and RNFL/GCC
+through per-dataset `encoder -> trunk -> head` branches, comparing an
+independent-trunk control (M01-A) against a literally-shared trunk
+(M01-B), with zero cross-dataset patient pairing at any point.
+
+New files: `dataset/rnfl_gcc_feature_extraction.py` (first structured
+RNFL/GCC feature export), `training/extract_gamma_embeddings.py` (frozen
+GAMMA embedding extractor — explicitly NOT the frozen EXP-05/06
+checkpoint, see its docstring), `training/train_multidataset_representation.py`
+(M01-A/M01-B training+eval), `results/case_examples/build_case_examples.py`
+(real held-out case examples + GAMMA visual panels).
+
+Smoke-tested before the real run (1 fold, 5 epochs, verified no crash and
+sane shapes on real data) per project convention.
+
+### Results
+
+See `EXPERIMENTS.md` → `m01 (EXP-M01)` for the full table. Headline: a
+shared trunk modestly helped HVF (Kappa 0.036→0.125) and RNFL/GCC (Kappa
+0.356→0.442) while slightly costing GAMMA's probe branch (QWK 0.851→0.832)
+— a small, mixed-direction effect, reported as suggestive rather than
+conclusive given the fold-to-fold variance. The frozen GAMMA benchmark
+number (0.820 acc / 0.924 ROC-AUC) is untouched and was never re-measured
+by this experiment — M01's GAMMA branch runs on a deliberately different,
+weaker frozen embedding used only as an M01-A/M01-B probe target.
+
+### Files changed
+- `dataset/rnfl_gcc_feature_extraction.py`, `dataset/rnfl_gcc_features.csv` (new)
+- `training/extract_gamma_embeddings.py`, `dataset/gamma_fusion_embeddings.csv` (new)
+- `training/train_multidataset_representation.py` (new)
+- `results/m01/` (new — per-fold metrics/predictions/confusion matrices, summary.json, config.json)
+- `results/case_examples/build_case_examples.py`, `results/case_examples/CASE_EXAMPLES.md`, `results/case_examples/images/` (new)
+- `EXPERIMENTS.md`, `PROGRESS.md` (this entry)
+
+### Problems / blockers
+- The per-fold checkpoints for the actual frozen EXP-05/06 benchmark
+  (EfficientNet-B0 fundus) no longer exist on disk (`cross_validate.py`
+  deletes them by default unless `--keep-checkpoints` is passed). GAMMA's
+  M01 branch had to use a different, weaker single-split checkpoint
+  (`fusion_run1.pt`, resnet18/resnet18) as its frozen feature extractor
+  instead. Clearly labeled everywhere this matters; if the frozen
+  benchmark's actual embeddings are ever needed again, rerun
+  `cross_validate.py --keep-checkpoints` once to preserve them.
+- RNFL/GCC still has no patient ID (confirmed unrecoverable by forensic
+  audit), so its fold split in M01 is plain-stratified, not
+  patient-grouped — a standing, explicitly logged limitation.
+
+### Next action
+1. If a real RNFL/GCC↔HVF patient/eye/date mapping is ever supplied by the
+   data provider, EXP-C02/C03 (RNFL/GCC-only, then HVF+RNFL/GCC fusion)
+   become possible — not before.
+2. If the frozen EfficientNet-B0 GAMMA embeddings are wanted for a future
+   M01 rerun, regenerate them once with `--keep-checkpoints` rather than
+   continuing to rely on the weaker `fusion_run1.pt`.
+3. M01-C (contrastive/alignment) deliberately not attempted yet — only
+   revisit if a clearer, larger M01-B effect emerges from more data or a
+   different trunk design.
+
+---
+
 ## 2026-09-27 (EXP-06 implemented, run, and recorded — architecture freeze point reached)
 
 ### Completed

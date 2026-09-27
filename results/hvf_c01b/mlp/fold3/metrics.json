@@ -1,0 +1,29 @@
+{
+  "num_eval_eyes": 33,
+  "accuracy": 0.45454545454545453,
+  "balanced_accuracy": 0.372053872053872,
+  "macro_f1": 0.34101382488479265,
+  "cohen_kappa": 0.09451219512195119,
+  "quadratic_weighted_kappa": 0.1597603594608089,
+  "per_class": {
+    "mild": {
+      "precision": 0.5384615384615384,
+      "recall": 0.3888888888888889,
+      "f1": 0.45161290322580644,
+      "support": 18
+    },
+    "moderate": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "support": 4
+    },
+    "severe": {
+      "precision": 0.47058823529411764,
+      "recall": 0.7272727272727273,
+      "f1": 0.5714285714285714,
+      "support": 11
+    }
+  },
+  "roc_auc_ovr_macro": 0.6130310418711673
+}

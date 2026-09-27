@@ -21,6 +21,7 @@ export const NAV_LINKS = [
   { href: "/dataset", label: "Dataset" },
   { href: "/results", label: "Results" },
   { href: "/research", label: "Research" },
+  { href: "/research/journey", label: "Journey" },
 ] as const;
 
 export const VERIFIED_GAMMA_FACTS = {

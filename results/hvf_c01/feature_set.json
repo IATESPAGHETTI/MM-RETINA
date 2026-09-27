@@ -1,0 +1,17 @@
+{
+  "tag": "hvf_c01",
+  "numeric_features": [
+    "md_db",
+    "psd_db",
+    "vfi_pct",
+    "false_positive_pct",
+    "false_negative_pct",
+    "fixation_loss_ratio",
+    "test_duration_min",
+    "refraction_used",
+    "age_years"
+  ],
+  "categorical_features": [
+    "sex"
+  ]
+}

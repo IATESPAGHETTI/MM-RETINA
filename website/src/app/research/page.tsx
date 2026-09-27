@@ -17,6 +17,17 @@ export default function ResearchPage() {
         </Reveal>
       </section>
 
+      <section className="mx-auto max-w-2xl px-6 pb-4 text-center">
+        <Reveal>
+          <a
+            href="/research/journey"
+            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm text-ink transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-champagne"
+          >
+            Walk through the animated research journey &rarr;
+          </a>
+        </Reveal>
+      </section>
+
       <section className="mx-auto max-w-2xl px-6 py-8">
         <Reveal>
           <div className="space-y-4 border-t border-white/10 pt-8 text-base leading-relaxed text-ink-muted">

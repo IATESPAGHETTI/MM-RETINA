@@ -1,0 +1,33 @@
+{
+  "seed": 42,
+  "n_folds": 5,
+  "epochs": 400,
+  "patience": 40,
+  "lr": 0.001,
+  "embed_dim": 64,
+  "gamma_embedding_source": "training/extract_gamma_embeddings.py (fusion_run1.pt, resnet18/resnet18 \u2014 NOT the frozen EXP-05/06 EfficientNet-B0 checkpoint)",
+  "hvf_features": [
+    "false_positive_pct",
+    "false_negative_pct",
+    "fixation_loss_ratio",
+    "test_duration_min",
+    "refraction_used",
+    "age_years"
+  ],
+  "rnfl_gcc_features": [
+    "Average_RNFL",
+    "RNFL_Superior",
+    "RNFL_Inferior",
+    "RNFL_Nasal",
+    "RNFL_Temporal",
+    "Average_GCC",
+    "GCC_Superior",
+    "GCC_Inferior",
+    "GCC_Supero_nasal",
+    "GCC_Supero_temporal",
+    "GCC_Infero_nasal",
+    "GCC_Infero_temporal",
+    "age"
+  ],
+  "rnfl_gcc_limitation": "plain StratifiedKFold, not patient-grouped \u2014 no patient ID exists (dataset/rnfl_gcc_provenance_audit.md)"
+}
