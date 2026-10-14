@@ -9,6 +9,9 @@ export function Footer() {
           <Link href="/about" className="hover:text-ink">
             About
           </Link>
+          <Link href="/model-card" className="hover:text-ink">
+            Model card
+          </Link>
           <Link href="/dataset" className="hover:text-ink">
             Dataset & citation
           </Link>

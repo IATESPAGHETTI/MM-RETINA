@@ -1,0 +1,24 @@
+# One command: `docker compose up --build`  ->  site on :3000, API on :8000
+# Needs the (gitignored) demo checkpoints in ./training/checkpoints/.
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      MM_RETINA_CORS_ORIGIN: http://localhost:3000
+    volumes:
+      - ./training/checkpoints:/app/training/checkpoints:ro
+
+  website:
+    build:
+      context: .
+      dockerfile: website/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend

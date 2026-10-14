@@ -125,3 +125,37 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Printable analysis report: light palette, no chrome. */
+@media print {
+  :root {
+    --bg: #ffffff;
+    --bg-elevated: #ffffff;
+    --ink: #14130f;
+    --ink-muted: #3d3b36;
+    --ink-faint: #5f5c55;
+    --accent-champagne: #7a5a22;
+  }
+  html {
+    color-scheme: light;
+  }
+  header,
+  footer,
+  .no-print,
+  .atmosphere,
+  .noise {
+    display: none !important;
+  }
+  .glass,
+  .glass-strong {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+  body * {
+    filter: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

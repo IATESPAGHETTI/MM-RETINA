@@ -58,6 +58,18 @@ as unavailable in `/api/health` and returns HTTP 503 from `/api/predict`
 uvicorn app:app --reload --port 8000
 ```
 
+## Test
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+Validation paths (bad modality, wrong content type, corrupt/oversized file,
+colour image in the OCT slot, wrong slice count) run without any checkpoints.
+Real-inference tests run only if `training/checkpoints/*.pt` exist and are
+skipped otherwise — they are never faked.
+
 ## Endpoints
 
 ### `GET /api/health`
@@ -183,6 +195,19 @@ and for why this is implemented for the fundus branch only:
 `explain=true` is a no-op (not an error) when modality is `oct` or no
 fundus image was given — nothing to explain in that case.
 
+## Standalone tabular models (HVF, RNFL/GCC)
+
+These cohorts cannot be paired with GAMMA, so they are independent models, loaded from
+`training/tabular_models/*.joblib` (tracked in git; produced by `training/train_tabular_encoders.py`).
+
+- `GET /api/tabular/schema` — fields, units, training ranges and CV-based reliability per cohort.
+- `POST /api/predict/tabular/{hvf|rnfl_gcc}` with `{"values": {"<feature>": 12.3, "<other>": null}}`. Null/omitted
+  fields are median-imputed and reported in `imputed_features` (more than half missing is a 400). Values outside the
+  training range are listed in `out_of_range`. The response includes `drivers` (exact linear contributions) and the
+  `reliability` tier. `/api/health` reports `tabular_loaded` / `tabular_errors`.
+
+The joblib files are scikit-learn pickles — only load ones you trained yourself.
+
 ## Logging
 
 Every request logs a short id, modality, whether each image/slice-set was
@@ -196,5 +221,5 @@ Model load status/errors are logged once at startup.
   to disk, nothing to clean up).
 - No auth — this is a local research demo, not a public deployment.
 - No OCT Grad-CAM/attribution (see above — deferred, not abandoned).
-- No Docker packaging (discussed with the user, deferred as unnecessary
-  for the current localhost-only scope).
+- Docker images exist (`backend/Dockerfile`, root `docker-compose.yml`) but have
+  not been build-tested in CI; checkpoints are mounted, never baked in.

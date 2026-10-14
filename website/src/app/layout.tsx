@@ -15,9 +15,20 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MM-RETINA — Multimodal Retinal AI Research",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  title: {
+    default: "MM-RETINA — Multimodal Retinal AI Research",
+    template: "%s",
+  },
   description:
     "A multimodal AI research prototype combining OCT volumes and fundus imaging for glaucoma grading.",
+  openGraph: {
+    title: "MM-RETINA — Multimodal Retinal AI Research",
+    description:
+      "Glaucoma grading from OCT and fundus imaging, with patient-level cross-validation, explainability and a live inference demo.",
+    siteName: "MM-RETINA",
+    type: "website",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

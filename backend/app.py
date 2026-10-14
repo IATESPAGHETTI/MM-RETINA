@@ -20,13 +20,15 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, UnidentifiedImageError
+from pydantic import BaseModel
 
 import inference
+import tabular
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 log = logging.getLogger("mm-retina-backend")
@@ -37,6 +39,7 @@ VALID_MODALITIES = {"fundus", "oct", "fusion"}
 CORS_ORIGIN = os.environ.get("MM_RETINA_CORS_ORIGIN", "http://localhost:3000")
 
 _model_status: dict = {}
+_tabular_status: dict = {}
 
 
 @asynccontextmanager
@@ -46,6 +49,8 @@ async def lifespan(app: FastAPI):
     if _model_status["errors"]:
         log.warning("Some models failed to load: %s", _model_status["errors"])
     log.info("Model load complete. Loaded=%s device=%s", _model_status["loaded"], _model_status["device"])
+    _tabular_status.update(tabular.load_all())
+    log.info("Tabular models: loaded=%s errors=%s", _tabular_status["loaded"], _tabular_status["errors"])
     yield
 
 
@@ -67,7 +72,45 @@ def health():
         "models_loaded": _model_status.get("loaded", []),
         "model_errors": _model_status.get("errors", {}),
         "device": _model_status.get("device"),
+        "tabular_loaded": _tabular_status.get("loaded", []),
+        "tabular_errors": _tabular_status.get("errors", {}),
     }
+
+
+class TabularInput(BaseModel):
+    """Feature values keyed by name. Omitted/null fields are median-imputed (and reported)."""
+
+    values: Dict[str, Optional[float]]
+
+
+@app.get("/api/tabular/schema")
+def tabular_schema():
+    """Form definitions (fields, units, training ranges) and CV-based reliability per cohort."""
+    return tabular.schema()
+
+
+@app.post("/api/predict/tabular/{cohort}")
+def predict_tabular(cohort: str, body: TabularInput):
+    """
+    Standalone HVF / RNFL-GCC grading. These cohorts cannot be paired with the
+    fundus/OCT model (no shared patient identity), so this is an independent
+    result on its own Mild/Moderate/Severe scale - never a fused prediction.
+    """
+    if cohort not in tabular.COHORTS:
+        raise HTTPException(status_code=404, detail=f"cohort must be one of {list(tabular.COHORTS)}")
+    if not tabular.is_ready(cohort):
+        raise HTTPException(status_code=503, detail=f"model for cohort={cohort!r} is not loaded — see /api/health")
+    request_id = str(uuid.uuid4())[:8]
+    try:
+        result = tabular.predict(cohort, body.values)
+    except ValueError as e:
+        log.warning("[%s] tabular rejected: %s", request_id, e)
+        raise HTTPException(status_code=400, detail=str(e))
+    log.info(
+        "[%s] tabular cohort=%s prediction=%s confidence=%.3f",
+        request_id, cohort, result["prediction"], result["confidence"],
+    )
+    return {"request_id": request_id, **result}
 
 
 async def _read_and_validate_image(

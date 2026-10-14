@@ -4,9 +4,9 @@
  *
  *  - VERIFIED_* : facts about the GAMMA/GRAPE datasets, sourced from the
  *    official dataset cards / papers (see dataset/README.md in the repo root).
- *  - CV_RESULTS : real 5-fold cross-validation metrics (15 total training
- *    runs) copied verbatim from results/cv/summary.json and EXPERIMENTS.md —
- *    never rounded up, adjusted, or "cleaned up".
+ *  - Cross-validation metrics are NOT in this file: they live in
+ *    results.generated.json (see lib/results.ts), generated directly from
+ *    results/**\/summary.json so they cannot drift from the experiment log.
  *  - SINGLE_SPLIT_HISTORY : the earlier, superseded single-split experiment.
  *    Its full numbers live in EXPERIMENTS.md/git history, not here — this
  *    is only the qualitative "why we moved to CV" story.
@@ -64,67 +64,11 @@ export const VERIFIED_GRAPE_FACTS = {
 } as const;
 
 /**
- * Real 5-fold cross-validation results (2026-09-17): 15 total training
- * runs (5 folds x {fundus, oct, fusion}), patient-level grade-stratified
- * folds over all 100 labeled GAMMA training patients. Copied verbatim from
- * results/cv/summary.json / EXPERIMENTS.md's cv-run-1 entry — never
- * rounded up or adjusted. This superseded an earlier single 70/15/15
- * split (see SINGLE_SPLIT_HISTORY below) whose numbers are intentionally
- * NOT redisplayed here, since they were sensitive to that one split.
- */
-export const CV_RESULTS = {
-  numFolds: 5,
-  numPatients: 100,
-  totalRuns: 15,
-  methodologyNote:
-    "Results are reported using 5-fold cross-validation across 100 patients, with 15 total model runs across the three modalities. Values are reported as mean ± standard deviation across folds.",
-  runs: [
-    {
-      name: "Fundus only",
-      accuracy: 0.73,
-      accuracyStd: 0.156,
-      balancedAccuracy: 0.697,
-      balancedAccuracyStd: 0.173,
-      macroF1: 0.682,
-      macroF1Std: 0.183,
-      rocAuc: 0.876,
-      rocAucStd: 0.086,
-    },
-    {
-      name: "OCT only",
-      accuracy: 0.661,
-      accuracyStd: 0.089,
-      balancedAccuracy: 0.599,
-      balancedAccuracyStd: 0.076,
-      macroF1: 0.587,
-      macroF1Std: 0.09,
-      rocAuc: 0.842,
-      rocAucStd: 0.041,
-    },
-    {
-      name: "Fusion (fundus + OCT)",
-      accuracy: 0.71,
-      accuracyStd: 0.052,
-      balancedAccuracy: 0.644,
-      balancedAccuracyStd: 0.058,
-      macroF1: 0.636,
-      macroF1Std: 0.061,
-      rocAuc: 0.892,
-      rocAucStd: 0.035,
-    },
-  ],
-  interpretation:
-    "Fusion achieved the highest mean ROC-AUC (0.892 ± 0.035) and demonstrated substantially more consistent fold-to-fold performance than fundus-only. Fundus-only achieved higher mean accuracy, balanced accuracy, and macro F1 in this experiment, but with considerably higher variability. OCT-only was weakest across the evaluated metrics.",
-  whyCrossValidation:
-    "The earlier single train/test split made fundus-only appear clearly superior. Five-fold cross-validation showed that conclusion was sensitive to the particular split. The cross-validated experiment provides a more robust view of performance and reveals that fusion has the highest mean ROC-AUC and substantially lower variance.",
-} as const;
-
-/**
  * The earlier single-split experiment (fusion_run1/fundus_run1/oct_run1,
  * one 70/15/15 split, 14-sample test set) is kept in EXPERIMENTS.md and
  * git history in full — it is NOT deleted. Its specific numbers are
- * intentionally not redisplayed on the results page (see CV_RESULTS
- * above for why), but the qualitative story of why CV was needed is worth
+ * intentionally not redisplayed on the results page (see the experiment log
+ * for why), but the qualitative story of why CV was needed is worth
  * telling honestly.
  */
 export const SINGLE_SPLIT_HISTORY = {

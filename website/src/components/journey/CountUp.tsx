@@ -20,12 +20,12 @@ export function CountUp({ value, decimals = 1, suffix = "", className, duration 
 
   useEffect(() => {
     if (!inView) return;
-    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setDisplay(value);
-      return;
-    }
+    // Zero duration still resolves to `value` (via the animation callback,
+    // not a synchronous setState in the effect body).
+    const reduceMotion =
+      typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const controls = animate(0, value, {
-      duration,
+      duration: reduceMotion ? 0 : duration,
       ease: [0.16, 1, 0.3, 1],
       onUpdate: (v) => setDisplay(v),
     });

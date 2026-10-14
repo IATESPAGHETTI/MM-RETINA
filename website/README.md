@@ -17,18 +17,22 @@ also start the backend — see `../backend/README.md`.
 
 ## Structure
 
-- `src/app/` — pages: `/` (landing), `/model`, `/dataset`, `/results`, `/research`, `/about`, `/demo`.
+- `src/app/` — pages: `/` (landing), `/model`, `/dataset`, `/results`, `/model-card`, `/research`, `/research/journey`, `/about`, `/demo`.
 - `src/components/` — `Navbar`, `Hero`, `WhyMultimodal`, `ArchitecturePipeline`
   (animated SVG pipeline diagram), `OCTViewer` (real, interactive B-scan
   slider), `DatasetFacts`, `ResultsPreview`, `AblationTable`,
   `ResearchIntegrity`, `GlassCard`, `Reveal` (scroll-triggered motion
   wrapper), `DemoBadge`.
-- `src/lib/content.ts` — the single source of truth for page copy:
-  `VERIFIED_*` (official GAMMA/GRAPE dataset facts), `CV_RESULTS` (real
-  5-fold cross-validation metrics, copied verbatim from
-  `../results/cv/summary.json`), `SINGLE_SPLIT_HISTORY` (the qualitative
-  story of the earlier, superseded single-split experiment). There is no
-  static demo-prediction data anymore — `/demo` calls the real backend.
+- `src/lib/content.ts` — page copy: `VERIFIED_*` (official GAMMA/GRAPE
+  dataset facts), `SINGLE_SPLIT_HISTORY` (the qualitative story of the
+  earlier, superseded single-split experiment).
+- `src/lib/results.ts` + `results.generated.json` — cross-validation
+  metrics. The JSON is **generated** from `../results/**/summary.json` by
+  `python ../scripts/export_site_results.py` (CI runs it with `--check`), so
+  nothing is hand-copied. Re-run it after any new experiment. There is no
+  static demo-prediction data — `/demo` calls the real backend.
+- `src/components/demo/AnalysisReport.tsx` — the demo's result report
+  (probability bars, margin heuristic, Grad-CAM, print/copy).
 
 ## Design language
 
@@ -56,23 +60,24 @@ CC BY-NC-ND terms — see `../dataset/README.md` for the full license/citation.
 ## What's real vs. what to know about
 
 - Dataset facts are sourced from the official GAMMA dataset card/paper.
-- `/results` shows real 5-fold cross-validation metrics (15 total training
-  runs — see `../EXPERIMENTS.md`), not placeholders. An earlier single-split
-  experiment's numbers are intentionally not redisplayed (see
-  `SINGLE_SPLIT_HISTORY` in content.ts for why) but remain in
-  `EXPERIMENTS.md`/git history.
+- `/results` shows real 5-fold cross-validation metrics for the frozen best
+  model, the full six-experiment ablation ladder (with rejected results), and
+  the original modality ablation. An earlier single-split experiment's numbers
+  are intentionally not redisplayed (see `SINGLE_SPLIT_HISTORY` in content.ts)
+  but remain in `EXPERIMENTS.md`/git history.
 - `/demo` calls a real FastAPI backend (`../backend/`) running the actual
   trained checkpoints. It is not mocked — if the backend is down, the page
   says so and disables the run button rather than faking a result.
-- The live demo's OCT path has one known, disclosed limitation: it accepts
-  a single OCT image and repeats it across the model's expected 8-slice
-  input (the model was trained on 8 real slices per volume). See
-  `../backend/README.md`.
+- The live demo serves earlier single-split checkpoints (`fusion_run1`), not
+  the EfficientNet-B0 model behind the headline metrics. Disclosed on `/demo`,
+  `/model-card` and in `../backend/README.md`.
+- A single uploaded OCT image is repeated across the model's 8 slice
+  positions; the bundled sample uses a real 8-slice volume. The API reports
+  which one was used (`oct_mode`).
 
 ## Next steps if extending this
 
-1. Grad-CAM/attribution visualization for `/demo` (not implemented yet).
-2. Accept multiple OCT slice uploads instead of repeating one image.
-3. k-fold-aware statistical significance testing between modalities
-   (currently just mean±std, no paired test) — see `PROGRESS.md` at the
-   repo root.
+1. OCT-branch attribution (deferred, see `../backend/README.md`).
+2. Paired significance tests between configurations (currently mean ± std only).
+3. Retain one CV fold checkpoint of the frozen EfficientNet-B0 model so the demo
+   can serve the model the metrics describe.

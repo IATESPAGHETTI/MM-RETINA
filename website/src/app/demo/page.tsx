@@ -5,8 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { GlassCard } from "@/components/GlassCard";
 import { Reveal } from "@/components/Reveal";
+import { AnalysisReport, type PredictResult } from "@/components/demo/AnalysisReport";
+import { StandaloneModels } from "@/components/demo/StandaloneModels";
+import { API_URL } from "@/lib/api";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type Modality = "fundus" | "oct" | "fusion";
 type OctMode = "single" | "volume" | null;
@@ -23,17 +25,6 @@ const DEMO_OCT_VOLUME_INDICES = [0, 36, 73, 109, 146, 182, 219, 255];
 const DEMO_OCT_VOLUME_URLS = DEMO_OCT_VOLUME_INDICES.map(
   (i) => `/oct-volume/0001/${String(i).padStart(3, "0")}.jpg`
 );
-
-type PredictResult = {
-  success: boolean;
-  prediction: string;
-  confidence: number;
-  probabilities: Record<string, number>;
-  inference_time_ms: number;
-  model_version: string;
-  oct_mode: "real_volume" | "repeated_single_slice" | "none" | "n/a";
-  fundus_heatmap: string | null;
-};
 
 async function urlToFile(url: string, filename: string): Promise<File> {
   const res = await fetch(url);
@@ -59,6 +50,7 @@ export default function DemoPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<PredictResult | null>(null);
+  const [analysedAt, setAnalysedAt] = useState<Date>(new Date());
 
   useEffect(() => {
     fetch(`${API_URL}/api/health`)
@@ -132,20 +124,38 @@ export default function DemoPage() {
     (!needsFundus || fundusFile) &&
     (!needsOct || octSatisfied);
 
-  async function runAnalysis() {
+  type RunInputs = {
+    modality: Modality;
+    fundus: File | null;
+    octFile: File | null;
+    octVolume: File[] | null;
+    explain: boolean;
+  };
+
+  async function runAnalysis(inputs?: RunInputs) {
+    const run: RunInputs = inputs ?? {
+      modality,
+      fundus: fundusFile,
+      octFile,
+      octVolume: octMode === "volume" ? octVolumeFiles : null,
+      explain,
+    };
+    const runNeedsFundus = run.modality === "fundus" || run.modality === "fusion";
+    const runNeedsOct = run.modality === "oct" || run.modality === "fusion";
+
     setLoading(true);
     setError(null);
     setResult(null);
     try {
       const form = new FormData();
-      form.append("modality", modality);
-      if (needsFundus && explain) form.append("explain", "true");
-      if (needsFundus && fundusFile) form.append("fundus", fundusFile);
-      if (needsOct) {
-        if (octMode === "volume" && octVolumeFiles) {
-          octVolumeFiles.forEach((f) => form.append("oct_slices", f));
-        } else if (octFile) {
-          form.append("oct", octFile);
+      form.append("modality", run.modality);
+      if (runNeedsFundus && run.explain) form.append("explain", "true");
+      if (runNeedsFundus && run.fundus) form.append("fundus", run.fundus);
+      if (runNeedsOct) {
+        if (run.octVolume) {
+          run.octVolume.forEach((f) => form.append("oct_slices", f));
+        } else if (run.octFile) {
+          form.append("oct", run.octFile);
         }
       }
 
@@ -154,6 +164,7 @@ export default function DemoPage() {
       if (!res.ok) {
         throw new Error(data.detail || `Request failed (HTTP ${res.status})`);
       }
+      setAnalysedAt(new Date());
       setResult(data);
     } catch (e) {
       if (e instanceof TypeError) {
@@ -166,16 +177,41 @@ export default function DemoPage() {
     }
   }
 
-  const octModeCaption: Record<PredictResult["oct_mode"], string | null> = {
-    real_volume: "8 real OCT slices used as an actual volume",
-    repeated_single_slice: "single OCT image repeated across the model's expected slice sequence",
-    none: null,
-    "n/a": null,
-  };
+  /** One click: real GAMMA sample 0001 (fundus + true 8-slice OCT volume), fusion model, Grad-CAM on. */
+  async function runSampleCase() {
+    setLoading(true);
+    setError(null);
+    setResult(null);
+    try {
+      const [fundus, volume] = await Promise.all([
+        urlToFile(DEMO_IMAGES.fundus, "demo-fundus.jpg"),
+        Promise.all(DEMO_OCT_VOLUME_URLS.map((url, i) => urlToFile(url, `demo-oct-slice${i}.jpg`))),
+      ]);
+      setModality("fusion");
+      setExplain(true);
+      setFundusFile(fundus);
+      setFundusPreview(URL.createObjectURL(fundus));
+      setOctMode("volume");
+      setOctVolumeFiles(volume);
+      setOctFile(null);
+      setOctPreview(URL.createObjectURL(volume[Math.floor(volume.length / 2)]));
+      await runAnalysis({ modality: "fusion", fundus, octFile: null, octVolume: volume, explain: true });
+    } catch {
+      setError("Could not load the bundled sample images.");
+      setLoading(false);
+    }
+  }
+
+  function resetAll() {
+    setResult(null);
+    setError(null);
+    onFundusChange(null);
+    resetOct();
+  }
 
   return (
     <div className="pt-20">
-      <section className="mx-auto max-w-3xl px-6 pt-20 pb-8 text-center">
+      <section className="no-print mx-auto max-w-3xl px-6 pt-20 pb-8 text-center">
         <Reveal>
           <p className="mb-3 text-xs uppercase tracking-widest text-ink-faint">Demo</p>
           <h1 className="text-4xl font-semibold tracking-tight text-ink sm:text-5xl">
@@ -197,7 +233,7 @@ export default function DemoPage() {
       </section>
 
       <section className="mx-auto max-w-2xl px-6 py-8">
-        <Reveal className="mb-6 flex justify-center">
+        <Reveal className="no-print mb-6 flex justify-center">
           {backendStatus === "checking" && (
             <span className="text-xs text-ink-faint">Checking backend…</span>
           )}
@@ -217,7 +253,7 @@ export default function DemoPage() {
 
         <Reveal delay={0.1}>
           <GlassCard strong>
-            <div className="mb-6 flex justify-center gap-2">
+            <div className="no-print mb-6 flex justify-center gap-2">
               {(["fundus", "oct", "fusion"] as Modality[]).map((m) => (
                 <button
                   key={m}
@@ -236,7 +272,7 @@ export default function DemoPage() {
               ))}
             </div>
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="no-print grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div
                 className={`flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed p-6 text-center transition-colors ${
                   needsFundus ? "border-white/20" : "border-white/8 opacity-40"
@@ -330,7 +366,7 @@ export default function DemoPage() {
             </div>
 
             {needsFundus && (
-              <label className="mt-5 flex items-center justify-center gap-2 text-xs text-ink-muted">
+              <label className="no-print mt-5 flex items-center justify-center gap-2 text-xs text-ink-muted">
                 <input
                   type="checkbox"
                   checked={explain}
@@ -341,14 +377,34 @@ export default function DemoPage() {
               </label>
             )}
 
-            <button
-              type="button"
-              onClick={runAnalysis}
-              disabled={!canRun}
-              className="mt-4 w-full rounded-full bg-ink px-6 py-3 text-sm font-medium text-bg transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              {loading ? "Running…" : "Run analysis"}
-            </button>
+            <div className="no-print mt-4 flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => runAnalysis()}
+                disabled={!canRun}
+                className="w-full rounded-full bg-ink px-6 py-3 text-sm font-medium text-bg transition-opacity focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-champagne disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                {loading ? "Running…" : "Run analysis"}
+              </button>
+              <button
+                type="button"
+                onClick={runSampleCase}
+                disabled={backendStatus !== "online" || loading || !modelsLoaded.includes("fusion")}
+                className="w-full whitespace-nowrap rounded-full border border-white/15 px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-white/5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-champagne disabled:cursor-not-allowed disabled:opacity-30 sm:w-auto"
+              >
+                Run sample case
+              </button>
+            </div>
+
+            {loading && (
+              <div className="mt-6 space-y-3 border-t border-white/10 pt-6" role="status" aria-label="Running analysis">
+                <div className="h-7 w-40 animate-pulse rounded bg-white/10" />
+                <div className="h-3 w-24 animate-pulse rounded bg-white/10" />
+                <div className="h-2 w-full animate-pulse rounded-full bg-white/10" />
+                <div className="h-2 w-5/6 animate-pulse rounded-full bg-white/10" />
+                <div className="h-2 w-2/3 animate-pulse rounded-full bg-white/10" />
+              </div>
+            )}
 
             {error && (
               <p className="mt-4 rounded-lg border border-red-400/20 bg-red-400/10 p-3 text-sm text-red-200">
@@ -356,51 +412,18 @@ export default function DemoPage() {
               </p>
             )}
 
-            {result && (
-              <div className="mt-6 border-t border-white/10 pt-6 text-center">
-                <p className="text-xs uppercase tracking-[0.3em] text-ink-faint">Prediction</p>
-                <p className="mt-2 text-3xl font-semibold capitalize tracking-tight text-ink">
-                  {result.prediction}
-                </p>
-                <p className="mt-1 text-sm text-accent-champagne">
-                  {(result.confidence * 100).toFixed(1)}% confidence
-                </p>
-
-                <div className="mx-auto mt-6 flex max-w-sm justify-center gap-6">
-                  {Object.entries(result.probabilities).map(([label, p]) => (
-                    <div key={label}>
-                      <div className="text-lg font-medium text-ink-muted">{(p * 100).toFixed(0)}%</div>
-                      <div className="mt-1 text-xs uppercase tracking-wider text-ink-faint">{label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="mt-6 text-xs text-ink-faint">
-                  {result.inference_time_ms.toFixed(1)}ms inference · model {result.model_version}
-                  {octModeCaption[result.oct_mode] && <> · {octModeCaption[result.oct_mode]}</>}
-                </p>
-
-                {result.fundus_heatmap && (
-                  <div className="mx-auto mt-6 max-w-[220px]">
-                    <p className="mb-2 text-xs uppercase tracking-[0.3em] text-ink-faint">
-                      Grad-CAM (fundus)
-                    </p>
-                    <div className="relative aspect-square overflow-hidden rounded-xl border border-white/10">
-                      <Image src={result.fundus_heatmap} alt="Grad-CAM heatmap over the fundus image" fill className="object-cover" unoptimized />
-                    </div>
-                    <p className="mt-2 text-[11px] leading-relaxed text-ink-faint">
-                      Highlights regions that most influenced the predicted
-                      class. This is model attribution, not proof of causal
-                      or clinical reasoning.
-                    </p>
-                  </div>
-                )}
-              </div>
+            {result && !loading && (
+              <AnalysisReport
+                result={result}
+                fundusPreview={fundusPreview}
+                analysedAt={analysedAt}
+                onReset={resetAll}
+              />
             )}
           </GlassCard>
         </Reveal>
 
-        <Reveal delay={0.2} className="mt-6">
+        <Reveal delay={0.2} className="no-print mt-6">
           <p className="text-center text-xs text-ink-faint">
             Demo predictions are generated by the project&apos;s trained model
             and are for research demonstration only. They are not medical
@@ -408,6 +431,10 @@ export default function DemoPage() {
           </p>
         </Reveal>
       </section>
+
+      <div className="no-print pb-24">
+        <StandaloneModels imaging={result} />
+      </div>
     </div>
   );
 }

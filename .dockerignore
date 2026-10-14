@@ -1,0 +1,12 @@
+**/node_modules
+**/.next
+**/__pycache__
+.git
+.claude
+results
+runs
+dataset/GAMMA
+Adv_prj4
+*.zip
+*.log
+training/checkpoints
