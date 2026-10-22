@@ -1,0 +1,25 @@
+# environments and build output
+.venv/
+node_modules/
+.next/
+__pycache__/
+*.pyc
+*.log
+tsconfig.tsbuildinfo
+.env
+.env.local
+
+# patient / hospital data: never publish
+data/
+
+# real patient scans copied from the Sankara cohort (keep samples.json numbers only)
+frontend/public/samples/oct-*.jpg
+
+# model weights and caches (too large for GitHub; see README "Getting the data and weights")
+models/*.pt
+models/*.joblib
+ml/gamma/checkpoints/
+backend/dipp/models/
+backend/dipp/saved_model/
+ml/results/paper/pre512.npy
+ml/results/explore/*.npy

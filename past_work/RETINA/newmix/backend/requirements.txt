@@ -1,0 +1,17 @@
+fastapi==0.115.0
+uvicorn[standard]>=0.30
+python-multipart
+pillow
+numpy
+pandas
+openpyxl
+scipy
+scikit-learn==1.7.2
+scikit-image
+opencv-python
+joblib
+torch>=2.5
+torchvision
+timm
+# Kartik's HbA1c models are Keras-3 files; they run on the torch backend, so TensorFlow is NOT needed.
+keras==3.5.0

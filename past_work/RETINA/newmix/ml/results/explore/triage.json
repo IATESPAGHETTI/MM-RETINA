@@ -1,0 +1,58 @@
+{
+  "flat": {
+    "accuracy": 0.6997,
+    "balanced_accuracy": 0.6771,
+    "balanced_accuracy_sd": 0.0141,
+    "qwk": 0.8064,
+    "auc_glaucoma": 0.9506,
+    "sensitivity_at_90_specificity": 0.8851,
+    "per_class_recall": {
+      "Control": 0.837,
+      "Mild": 0.675,
+      "Moderate": 0.355,
+      "Severe": 0.842
+    },
+    "coverage": {
+      "100%": {
+        "accuracy": 0.6997,
+        "balanced_accuracy": 0.6771
+      },
+      "80%": {
+        "accuracy": 0.7631,
+        "balanced_accuracy": 0.706
+      },
+      "60%": {
+        "accuracy": 0.8571,
+        "balanced_accuracy": 0.7364
+      }
+    }
+  },
+  "hierarchical": {
+    "accuracy": 0.6854,
+    "balanced_accuracy": 0.677,
+    "balanced_accuracy_sd": 0.0141,
+    "qwk": 0.795,
+    "auc_glaucoma": 0.9388,
+    "sensitivity_at_90_specificity": 0.8736,
+    "per_class_recall": {
+      "Control": 0.93,
+      "Mild": 0.548,
+      "Moderate": 0.362,
+      "Severe": 0.868
+    },
+    "coverage": {
+      "100%": {
+        "accuracy": 0.6854,
+        "balanced_accuracy": 0.677
+      },
+      "80%": {
+        "accuracy": 0.7397,
+        "balanced_accuracy": 0.698
+      },
+      "60%": {
+        "accuracy": 0.8132,
+        "balanced_accuracy": 0.6918
+      }
+    }
+  }
+}

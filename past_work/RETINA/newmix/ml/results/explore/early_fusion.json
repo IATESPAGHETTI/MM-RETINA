@@ -1,0 +1,218 @@
+{
+  "early_crop0_pca4_logreg": {
+    "accuracy": [
+      0.6469,
+      0.0097
+    ],
+    "balanced_accuracy": [
+      0.6693,
+      0.0067
+    ],
+    "qwk": [
+      0.7711,
+      0.0008
+    ],
+    "auc": [
+      0.9314,
+      0.0028
+    ]
+  },
+  "early_crop0_pca4_rf": {
+    "accuracy": [
+      0.6997,
+      0.0071
+    ],
+    "balanced_accuracy": [
+      0.6701,
+      0.0069
+    ],
+    "qwk": [
+      0.8064,
+      0.0064
+    ],
+    "auc": [
+      0.9457,
+      0.0044
+    ]
+  },
+  "early_crop0_pca8_logreg": {
+    "accuracy": [
+      0.6249,
+      0.0335
+    ],
+    "balanced_accuracy": [
+      0.6405,
+      0.0263
+    ],
+    "qwk": [
+      0.7581,
+      0.0127
+    ],
+    "auc": [
+      0.9242,
+      0.0038
+    ]
+  },
+  "early_crop0_pca8_rf": {
+    "accuracy": [
+      0.7008,
+      0.0127
+    ],
+    "balanced_accuracy": [
+      0.6702,
+      0.0104
+    ],
+    "qwk": [
+      0.8075,
+      0.0052
+    ],
+    "auc": [
+      0.9467,
+      0.0047
+    ]
+  },
+  "early_crop0_pca16_logreg": {
+    "accuracy": [
+      0.6073,
+      0.0374
+    ],
+    "balanced_accuracy": [
+      0.6108,
+      0.0303
+    ],
+    "qwk": [
+      0.7398,
+      0.0099
+    ],
+    "auc": [
+      0.9182,
+      0.0088
+    ]
+  },
+  "early_crop0_pca16_rf": {
+    "accuracy": [
+      0.7008,
+      0.0112
+    ],
+    "balanced_accuracy": [
+      0.6604,
+      0.0148
+    ],
+    "qwk": [
+      0.8072,
+      0.0052
+    ],
+    "auc": [
+      0.9444,
+      0.0017
+    ]
+  },
+  "early_crop1_pca4_logreg": {
+    "accuracy": [
+      0.6282,
+      0.027
+    ],
+    "balanced_accuracy": [
+      0.6459,
+      0.0203
+    ],
+    "qwk": [
+      0.7559,
+      0.0123
+    ],
+    "auc": [
+      0.9322,
+      0.0079
+    ]
+  },
+  "early_crop1_pca4_rf": {
+    "accuracy": [
+      0.6953,
+      0.0087
+    ],
+    "balanced_accuracy": [
+      0.6716,
+      0.0093
+    ],
+    "qwk": [
+      0.8066,
+      0.0015
+    ],
+    "auc": [
+      0.9454,
+      0.0033
+    ]
+  },
+  "early_crop1_pca8_logreg": {
+    "accuracy": [
+      0.6183,
+      0.0189
+    ],
+    "balanced_accuracy": [
+      0.6365,
+      0.0131
+    ],
+    "qwk": [
+      0.7498,
+      0.0077
+    ],
+    "auc": [
+      0.9268,
+      0.007
+    ]
+  },
+  "early_crop1_pca8_rf": {
+    "accuracy": [
+      0.7008,
+      0.0102
+    ],
+    "balanced_accuracy": [
+      0.6704,
+      0.0158
+    ],
+    "qwk": [
+      0.8053,
+      0.006
+    ],
+    "auc": [
+      0.9462,
+      0.0035
+    ]
+  },
+  "early_crop1_pca16_logreg": {
+    "accuracy": [
+      0.5974,
+      0.0143
+    ],
+    "balanced_accuracy": [
+      0.6142,
+      0.0101
+    ],
+    "qwk": [
+      0.7356,
+      0.0104
+    ],
+    "auc": [
+      0.919,
+      0.0042
+    ]
+  },
+  "early_crop1_pca16_rf": {
+    "accuracy": [
+      0.7074,
+      0.0041
+    ],
+    "balanced_accuracy": [
+      0.6662,
+      0.0098
+    ],
+    "qwk": [
+      0.8071,
+      0.0038
+    ],
+    "auc": [
+      0.9439,
+      0.0046
+    ]
+  }
+}

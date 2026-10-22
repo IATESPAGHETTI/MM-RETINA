@@ -1,0 +1,75 @@
+{
+  "clinical": {
+    "head": "clinical",
+    "threshold": 0.5317,
+    "target_coverage": 0.8,
+    "coverage_achieved": 0.7998,
+    "accuracy_answered": 0.7634,
+    "accuracy_deferred": 0.4451,
+    "n_deferred": 182,
+    "n": 909,
+    "table": {
+      "100%": {
+        "accuracy": 0.6997,
+        "balanced_accuracy": 0.6771
+      },
+      "80%": {
+        "accuracy": 0.7634,
+        "balanced_accuracy": 0.7034
+      },
+      "60%": {
+        "accuracy": 0.8606,
+        "balanced_accuracy": 0.7359
+      }
+    }
+  },
+  "oct": {
+    "head": "oct",
+    "threshold": 0.3962,
+    "target_coverage": 0.8,
+    "coverage_achieved": 0.7998,
+    "accuracy_answered": 0.5199,
+    "accuracy_deferred": 0.3681,
+    "n_deferred": 182,
+    "n": 909,
+    "table": {
+      "100%": {
+        "accuracy": 0.4895,
+        "balanced_accuracy": 0.4437
+      },
+      "80%": {
+        "accuracy": 0.5199,
+        "balanced_accuracy": 0.4784
+      },
+      "60%": {
+        "accuracy": 0.5596,
+        "balanced_accuracy": 0.5127
+      }
+    }
+  },
+  "fused": {
+    "head": "fused",
+    "threshold": 0.4885,
+    "target_coverage": 0.8,
+    "coverage_achieved": 0.7998,
+    "accuracy_answered": 0.7758,
+    "accuracy_deferred": 0.4121,
+    "n_deferred": 182,
+    "n": 909,
+    "table": {
+      "100%": {
+        "accuracy": 0.703,
+        "balanced_accuracy": 0.6799
+      },
+      "80%": {
+        "accuracy": 0.7758,
+        "balanced_accuracy": 0.6948
+      },
+      "60%": {
+        "accuracy": 0.855,
+        "balanced_accuracy": 0.736
+      }
+    }
+  },
+  "note": "Cut-offs are the 20th percentile of out-of-fold top-class probability, pooled over 3 seeds of patient-grouped 5-fold CV."
+}

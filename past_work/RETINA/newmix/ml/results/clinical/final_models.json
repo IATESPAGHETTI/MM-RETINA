@@ -1,0 +1,10 @@
+{
+  "binary": {
+    "algo": "logreg",
+    "cv_balanced_accuracy": 0.8829
+  },
+  "multiclass": {
+    "algo": "rf",
+    "cv_balanced_accuracy": 0.6771
+  }
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "seed": 42,
+    "protocol": "image_level_random (paper-style)",
+    "n_train": 1272,
+    "n_test": 182,
+    "test_acc": 0.8132,
+    "test_balanced_acc": 0.785,
+    "test_images_with_sibling_in_train": 1.0
+  },
+  {
+    "seed": 42,
+    "protocol": "patient_grouped",
+    "n_train": 1236,
+    "n_test": 180,
+    "test_acc": 0.5222,
+    "test_balanced_acc": 0.3871,
+    "test_images_with_sibling_in_train": 0.0
+  }
+]
