@@ -1,0 +1,35 @@
+{
+  "research": {
+    "eyes": 303,
+    "controls": 100,
+    "glaucoma": {
+      "Mild": 118,
+      "Moderate": 47,
+      "Severe": 38
+    },
+    "reconstructed_patients": 162,
+    "md_rule_agreement": 1.0,
+    "pachy_missing_pct": {
+      "glaucoma": 33.0,
+      "control": 51.0
+    },
+    "cft_missing_pct": {
+      "glaucoma": 25.6,
+      "control": 49.0
+    },
+    "mean_age": {
+      "glaucoma": 60.8,
+      "control": 55.2
+    }
+  },
+  "sankara": {
+    "fundus_images": 107,
+    "disc_photos": 107,
+    "disc_identical_to_fundus": 107,
+    "rnfl_gcc_rows": 171,
+    "rnfl_gcc_exact_matches_in_research": 82,
+    "hvf_files": 168,
+    "hvf_md_eye_matches": 101,
+    "hvf_unique_strict_matches": 67
+  }
+}

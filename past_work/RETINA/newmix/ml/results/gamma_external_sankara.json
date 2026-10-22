@@ -1,0 +1,34 @@
+{
+  "model": "fundus_run1 (single-split demo checkpoint)",
+  "n": 107,
+  "counts": {
+    "Mild": 83,
+    "Moderate": 13,
+    "Severe": 11
+  },
+  "accuracy_3class": 0.7009,
+  "predicted_normal_rate": 0.0093,
+  "auc_progressive_vs_early": 0.6416,
+  "pred_distribution": {
+    "normal": 1,
+    "early": 91,
+    "progressive": 15
+  },
+  "by_true_class": {
+    "Mild": {
+      "normal": 1,
+      "early": 71,
+      "progressive": 11
+    },
+    "Moderate": {
+      "normal": 0,
+      "early": 10,
+      "progressive": 3
+    },
+    "Severe": {
+      "normal": 0,
+      "early": 10,
+      "progressive": 1
+    }
+  }
+}

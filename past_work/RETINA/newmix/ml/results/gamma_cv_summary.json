@@ -1,0 +1,84 @@
+{
+  "fundus": {
+    "folds": 5,
+    "accuracy": {
+      "mean": 0.7302,
+      "sd": 0.1391
+    },
+    "balanced_accuracy": {
+      "mean": 0.6967,
+      "sd": 0.1551
+    },
+    "macro_f1": {
+      "mean": 0.682,
+      "sd": 0.1636
+    },
+    "auc": {
+      "mean": 0.8758,
+      "sd": 0.0766
+    }
+  },
+  "oct": {
+    "folds": 5,
+    "accuracy": {
+      "mean": 0.6611,
+      "sd": 0.0797
+    },
+    "balanced_accuracy": {
+      "mean": 0.5989,
+      "sd": 0.0683
+    },
+    "macro_f1": {
+      "mean": 0.5871,
+      "sd": 0.0801
+    },
+    "auc": {
+      "mean": 0.842,
+      "sd": 0.0366
+    }
+  },
+  "fusion": {
+    "folds": 5,
+    "accuracy": {
+      "mean": 0.7102,
+      "sd": 0.0466
+    },
+    "balanced_accuracy": {
+      "mean": 0.6444,
+      "sd": 0.0521
+    },
+    "macro_f1": {
+      "mean": 0.6358,
+      "sd": 0.0544
+    },
+    "auc": {
+      "mean": 0.8925,
+      "sd": 0.0311
+    }
+  },
+  "fusion_effnetb0": {
+    "folds": 5,
+    "accuracy": {
+      "mean": 0.8203,
+      "sd": 0.049
+    },
+    "balanced_accuracy": {
+      "mean": 0.79,
+      "sd": 0.0512
+    },
+    "macro_f1": {
+      "mean": 0.7808,
+      "sd": 0.0548
+    },
+    "auc": {
+      "mean": 0.9236,
+      "sd": 0.0353
+    }
+  },
+  "classes": [
+    "Normal",
+    "Early",
+    "Progressive"
+  ],
+  "dataset": "GAMMA (public), 300 eyes, patient-level 5-fold CV"
+}

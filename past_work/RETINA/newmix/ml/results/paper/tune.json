@@ -1,0 +1,36 @@
+{
+  "paper_spec": {
+    "cfg": {
+      "lr_bb": 0.0001,
+      "lr_rest": 0.0001,
+      "epochs": 25,
+      "bs": 8,
+      "ls": 0.0
+    },
+    "val_bal_acc": 0.4273809523809523,
+    "val_acc": 0.44680851063829785
+  },
+  "diff_lr": {
+    "cfg": {
+      "lr_bb": 3e-05,
+      "lr_rest": 0.0003,
+      "epochs": 25,
+      "bs": 8,
+      "ls": 0.0
+    },
+    "val_bal_acc": 0.35,
+    "val_acc": 0.40425531914893614
+  },
+  "diff_lr_smooth": {
+    "cfg": {
+      "lr_bb": 3e-05,
+      "lr_rest": 0.0003,
+      "epochs": 35,
+      "bs": 8,
+      "ls": 0.1
+    },
+    "val_bal_acc": 0.45119047619047614,
+    "val_acc": 0.5106382978723404
+  },
+  "chosen": "diff_lr_smooth"
+}

@@ -1,0 +1,132 @@
+{
+  "oct_arch": "resnet18",
+  "clinical_algo": "rf",
+  "weights": {
+    "oct": 0.2,
+    "clinical": 0.8
+  },
+  "weight_note": "20% OCT is a conservative down-weight chosen after inspecting the (optimistic) sweep; the sweep shows OCT adds no reliable value at any weight.",
+  "rows": {
+    "OCT scan": {
+      "accuracy": 0.505,
+      "balanced_accuracy": 0.4308,
+      "qwk": 0.5813,
+      "auc_glaucoma": 0.8151
+    },
+    "Clinical": {
+      "accuracy": 0.7129,
+      "balanced_accuracy": 0.6948,
+      "qwk": 0.8138,
+      "auc_glaucoma": 0.9506
+    },
+    "Fused (20% OCT / 80% clinical, deployed)": {
+      "accuracy": 0.7162,
+      "balanced_accuracy": 0.6906,
+      "qwk": 0.814,
+      "auc_glaucoma": 0.9531
+    },
+    "Fused (equal weights, reference)": {
+      "accuracy": 0.6898,
+      "balanced_accuracy": 0.6627,
+      "qwk": 0.7981,
+      "auc_glaucoma": 0.9422
+    }
+  },
+  "fused_minus_clinical": {
+    "accuracy": {
+      "mean": 0.0032,
+      "ci95": [
+        -0.0132,
+        0.0201
+      ]
+    },
+    "balanced_accuracy": {
+      "mean": -0.0043,
+      "ci95": [
+        -0.0217,
+        0.0112
+      ]
+    }
+  },
+  "weight_sweep_optimistic": [
+    {
+      "oct_weight": 0.0,
+      "accuracy": 0.7129,
+      "balanced_accuracy": 0.6948,
+      "qwk": 0.8138,
+      "auc_glaucoma": 0.9506
+    },
+    {
+      "oct_weight": 0.1,
+      "accuracy": 0.7195,
+      "balanced_accuracy": 0.6991,
+      "qwk": 0.8165,
+      "auc_glaucoma": 0.9537
+    },
+    {
+      "oct_weight": 0.2,
+      "accuracy": 0.7162,
+      "balanced_accuracy": 0.6906,
+      "qwk": 0.814,
+      "auc_glaucoma": 0.9531
+    },
+    {
+      "oct_weight": 0.3,
+      "accuracy": 0.7129,
+      "balanced_accuracy": 0.6852,
+      "qwk": 0.8157,
+      "auc_glaucoma": 0.9505
+    },
+    {
+      "oct_weight": 0.4,
+      "accuracy": 0.703,
+      "balanced_accuracy": 0.6833,
+      "qwk": 0.8096,
+      "auc_glaucoma": 0.9466
+    },
+    {
+      "oct_weight": 0.5,
+      "accuracy": 0.6898,
+      "balanced_accuracy": 0.6627,
+      "qwk": 0.7981,
+      "auc_glaucoma": 0.9422
+    },
+    {
+      "oct_weight": 0.6,
+      "accuracy": 0.67,
+      "balanced_accuracy": 0.6347,
+      "qwk": 0.7939,
+      "auc_glaucoma": 0.9337
+    },
+    {
+      "oct_weight": 0.7,
+      "accuracy": 0.6238,
+      "balanced_accuracy": 0.5752,
+      "qwk": 0.7466,
+      "auc_glaucoma": 0.9173
+    },
+    {
+      "oct_weight": 0.8,
+      "accuracy": 0.5809,
+      "balanced_accuracy": 0.5096,
+      "qwk": 0.6592,
+      "auc_glaucoma": 0.8927
+    },
+    {
+      "oct_weight": 0.9,
+      "accuracy": 0.5512,
+      "balanced_accuracy": 0.4643,
+      "qwk": 0.6173,
+      "auc_glaucoma": 0.8577
+    },
+    {
+      "oct_weight": 1.0,
+      "accuracy": 0.505,
+      "balanced_accuracy": 0.4308,
+      "qwk": 0.5813,
+      "auc_glaucoma": 0.8151
+    }
+  ],
+  "n_eyes": 303,
+  "n_patients": 162
+}
