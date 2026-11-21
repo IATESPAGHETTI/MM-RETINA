@@ -5,6 +5,45 @@ failed ones — a failed run is still real information.
 
 ---
 
+## Experiment: nested_cv_v1 (EXP-N01) — EXP-05 recipe re-evaluated with inner epoch selection (fusion done; fundus/OCT pending)
+
+### Why
+`cross_validate.py` selects each fold's best epoch on the same validation fold it reports, which is optimistic. EXP-N01 re-runs the frozen EXP-05 recipe (EfficientNet-B0 fundus + ResNet18 OCT, 8 slices single, vector fusion, img 160, focal loss, lr 1e-4, 25 epochs, patience 8) with **patient-level nested selection**: outer folds identical to EXP-05 (k=5, seed 42); each outer-train set is split ~80/20 (patient-level, grade-stratified) into inner-train / inner-val; epoch/early-stopping use inner-val only; the chosen checkpoint is scored once on the outer fold. 3 training seeds (42/43/44; seed also changes the inner split). No hyper-parameter grid. Script `training/nested_cv.py`; outputs `results/nested_cv_v1/` (per-run metrics, `per_eye_predictions.csv`, `summary.json`). Fold 0/seed 42 was trained on CPU (GPU briefly unavailable), the rest on the RTX 3060.
+
+### Results — fusion (15 runs; mean ± std over runs; pooled OOF recall with patient-bootstrap 95% CI)
+| Metric | EXP-05 (outer-selected) | EXP-N01 nested |
+|---|---:|---:|
+| Accuracy | 0.820 ± 0.055 | 0.743 ± 0.080 |
+| Macro F1 | 0.781 ± 0.061 | 0.665 ± 0.095 |
+| ROC-AUC | 0.924 ± 0.039 | 0.870 ± 0.054 |
+| QWK | 0.798 ± 0.113 | 0.766 ± 0.112 |
+| Early recall (pooled) | 16/26 = 0.615 | 0.410 [0.281, 0.561] |
+| Progressive recall (pooled) | 20/24 = 0.833 | 0.722 [0.577, 0.852] |
+| Normal recall (pooled) | 46/50 = 0.920 | 0.927 [0.860, 0.979] |
+
+### Interpretation
+The honest number is lower. The gap mixes two causes that this design cannot separate: (1) removal of selection optimism, and (2) ~20% less training data per fit (63-64 vs 79 samples). So 0.743 is not "the true EXP-05 accuracy"; it is accuracy for a model that must also pick its own epoch from 16 patients. The frozen 0.820 benchmark is unchanged and still labeled as outer-selected. Early recall is the weak point and is worse under nested selection. Pooled errors are dominated by Early<->Progressive confusion (seed 42: Early->Progressive 14, Progressive->Early 6); Early->Normal is rare (1-3). Of 26 Early patients, 8 are wrong in all 3 seeds, 8 in 2, 6 in 1, and 4 in none, so a large part of the Early error is systematic (not seed noise).
+
+### Caveats
+- n=100 patients, 26 Early; CIs are wide. Epoch chosen on 16 inner-val patients is itself noisy.
+- Seeds are not independent samples of patients; the bootstrap resamples patients over all seed rows.
+- Fundus-only and OCT-only nested runs pending (same folds/seeds).
+
+
+### Addendum — recipe-level abstention analysis (fusion, `training/abstention_analysis.py`)
+Cut-offs on max-softmax confidence chosen leave-one-outer-fold-out per seed (cut-off data and evaluated patients disjoint); patient-bootstrap 95% CIs. Output: `results/nested_cv_v1/abstention_recipe.json`. **Recipe-level evidence only, not a claim about any saved checkpoint.**
+| Target coverage | Actual coverage | Accuracy on answered [95% CI] | Accuracy on deferred |
+|---:|---:|---|---:|
+| 1.00 | 1.000 | 0.743 [0.670, 0.817] | — |
+| 0.90 | 0.887 | 0.774 [0.697, 0.850] | 0.500 |
+| 0.80 | 0.787 | 0.784 [0.709, 0.861] | 0.594 |
+| 0.70 | 0.670 | 0.816 [0.736, 0.891] | 0.596 |
+| 0.50 | 0.527 | 0.854 [0.772, 0.923] | 0.620 |
+Reading: deferring the least-confident ~20% raises accuracy on answered cases from 0.74 to ~0.78, but the CIs overlap the no-deferral accuracy heavily, and deferred cases are still right ~55-60% of the time. Confidence is only modestly informative on this data; "Needs review" should be presented as a weak safety net with this trade-off, not a validated cut-off. (Fusion only; fundus/OCT comparison pending.)
+
+
+---
+
 ## Experiment: m01 (EXP-M01) — Multi-Dataset Shared Representation Learning
 
 ### Goal
