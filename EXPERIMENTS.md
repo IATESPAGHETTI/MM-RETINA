@@ -5,6 +5,28 @@ failed ones — a failed run is still real information.
 
 ---
 
+## Experiment: vessel_features (EXP-V01) — exploratory: do DRIVE-U-Net vessel features track GAMMA grade?
+
+### What
+Ran Kartik's DRIVE-trained vessel U-Net (merged RETINA/DIPP module; weights not in git) on all 100 GAMMA training fundus photos, CPU, via the newmix diabetes service. Per photo: `vessel_density_pct` (vessel pixels / retinal-disc pixels) and `fractal_dimension` (box-counting of mask boundary). Script `training/vessel_features.py`; outputs `results/vessel_features/` (features.csv, summary.json, 6 sanity overlays). The HbA1c Keras models could NOT be tested (TensorFlow/Keras 3 not installed here).
+
+### Results
+| Grade | n | Vessel density % (mean ± sd) | Fractal dim (mean) |
+|---|---:|---:|---:|
+| Normal | 50 | 9.29 ± 1.96 | 1.310 |
+| Early | 26 | 5.26 ± 3.18 | 1.156 |
+| Progressive | 24 | 3.75 ± 2.75 | 1.092 |
+Kruskal-Wallis p ~ 1e-10 for both features (exploratory, uncorrected). Restricting to the dominant camera (2992x2000, n=94; 6 Normal photos are from a different 1956x1934 camera) the pattern holds (density 8.98 / 5.26 / 3.75, p ~ 2e-9). A 2-feature logistic model in patient-level 5-fold CV (EXP-05 folds) scores 0.63 accuracy vs 0.50 majority baseline — well below the 0.74-0.82 of the fusion model.
+
+### Interpretation — do NOT overclaim
+Vessel loss is reported in glaucoma literature, so a real effect is plausible, but this data cannot establish it:
+- The U-Net was trained on DRIVE (different camera/population). Transfer to GAMMA is unverified beyond eyeballing 2 overlays.
+- Inspected overlays show the pipeline resizes every photo to 512x512 without keeping aspect ratio: the 3:2 GAMMA photos become squeezed ovals, and the disc area used as the density denominator differs from the circular camera-B photos. Glaucoma photos are also slightly darker (mean green 30-32 vs 35), which can reduce segmentation sensitivity regardless of anatomy.
+- Image quality / illumination could explain part or all of the grade gap. No quality control was applied. n=100, one centre.
+So: an interesting, strong *association* worth a controlled follow-up (aspect-preserving resize, quality matching, check segmentation on GAMMA), not evidence that vessel density detects glaucoma. Nothing here changes the frozen benchmark.
+
+---
+
 ## Experiment: nested_cv_v1 (EXP-N01) — EXP-05 recipe re-evaluated with inner epoch selection (fusion done; fundus/OCT pending)
 
 ### Why
