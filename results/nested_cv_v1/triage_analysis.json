@@ -1,0 +1,170 @@
+{
+  "claim": "Descriptive triage trade-off on nested-CV out-of-fold predictions; not a tuned or validated operating point.",
+  "seeds_used": [
+    42
+  ],
+  "n_patients": 100,
+  "rule": "fundus confidence >= t -> fundus answer; else send for OCT and use fusion answer",
+  "fundus_only": {
+    "threshold": 0.0,
+    "share_sent_for_oct": 0.0,
+    "accuracy": 0.73,
+    "early_recall": 0.5384615384615384,
+    "accuracy_ci95": [
+      0.64,
+      0.82
+    ]
+  },
+  "fusion_for_all": {
+    "threshold": 1.01,
+    "share_sent_for_oct": 1.0,
+    "accuracy": 0.76,
+    "early_recall": 0.4230769230769231,
+    "accuracy_ci95": [
+      0.67,
+      0.84
+    ]
+  },
+  "curve": [
+    {
+      "threshold": 0.0,
+      "share_sent_for_oct": 0.0,
+      "accuracy": 0.73,
+      "early_recall": 0.5384615384615384,
+      "accuracy_ci95": [
+        0.64,
+        0.82
+      ]
+    },
+    {
+      "threshold": 0.4,
+      "share_sent_for_oct": 0.01,
+      "accuracy": 0.73,
+      "early_recall": 0.5384615384615384,
+      "accuracy_ci95": [
+        0.64,
+        0.82
+      ]
+    },
+    {
+      "threshold": 0.45,
+      "share_sent_for_oct": 0.13,
+      "accuracy": 0.73,
+      "early_recall": 0.5,
+      "accuracy_ci95": [
+        0.64,
+        0.82
+      ]
+    },
+    {
+      "threshold": 0.5,
+      "share_sent_for_oct": 0.26,
+      "accuracy": 0.76,
+      "early_recall": 0.46153846153846156,
+      "accuracy_ci95": [
+        0.67,
+        0.84
+      ]
+    },
+    {
+      "threshold": 0.55,
+      "share_sent_for_oct": 0.38,
+      "accuracy": 0.76,
+      "early_recall": 0.46153846153846156,
+      "accuracy_ci95": [
+        0.67,
+        0.83
+      ]
+    },
+    {
+      "threshold": 0.6,
+      "share_sent_for_oct": 0.51,
+      "accuracy": 0.75,
+      "early_recall": 0.4230769230769231,
+      "accuracy_ci95": [
+        0.66,
+        0.83
+      ]
+    },
+    {
+      "threshold": 0.65,
+      "share_sent_for_oct": 0.68,
+      "accuracy": 0.75,
+      "early_recall": 0.38461538461538464,
+      "accuracy_ci95": [
+        0.67,
+        0.83
+      ]
+    },
+    {
+      "threshold": 0.7,
+      "share_sent_for_oct": 0.74,
+      "accuracy": 0.75,
+      "early_recall": 0.38461538461538464,
+      "accuracy_ci95": [
+        0.67,
+        0.8352499999999997
+      ]
+    },
+    {
+      "threshold": 0.75,
+      "share_sent_for_oct": 0.83,
+      "accuracy": 0.75,
+      "early_recall": 0.38461538461538464,
+      "accuracy_ci95": [
+        0.67,
+        0.83
+      ]
+    },
+    {
+      "threshold": 0.8,
+      "share_sent_for_oct": 0.91,
+      "accuracy": 0.76,
+      "early_recall": 0.4230769230769231,
+      "accuracy_ci95": [
+        0.6747500000000001,
+        0.84
+      ]
+    },
+    {
+      "threshold": 0.85,
+      "share_sent_for_oct": 0.97,
+      "accuracy": 0.76,
+      "early_recall": 0.4230769230769231,
+      "accuracy_ci95": [
+        0.67,
+        0.84
+      ]
+    },
+    {
+      "threshold": 0.9,
+      "share_sent_for_oct": 1.0,
+      "accuracy": 0.76,
+      "early_recall": 0.4230769230769231,
+      "accuracy_ci95": [
+        0.68,
+        0.84
+      ]
+    },
+    {
+      "threshold": 0.95,
+      "share_sent_for_oct": 1.0,
+      "accuracy": 0.76,
+      "early_recall": 0.4230769230769231,
+      "accuracy_ci95": [
+        0.67,
+        0.83
+      ]
+    },
+    {
+      "threshold": 1.01,
+      "share_sent_for_oct": 1.0,
+      "accuracy": 0.76,
+      "early_recall": 0.4230769230769231,
+      "accuracy_ci95": [
+        0.67,
+        0.84
+      ]
+    }
+  ]
+}
