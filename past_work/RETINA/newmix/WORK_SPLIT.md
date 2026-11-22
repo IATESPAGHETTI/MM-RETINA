@@ -2,7 +2,21 @@
 
 Goal: turn the Retina Suite into a demo-able product with six visible features.
 Claude builds the **backend**. Codex builds the **frontend**. They meet at the
-API contract below, which is frozen in this file's first commit.
+API contract below, which is frozen at the git tag `suite-contract-v1`.
+
+## Start here (Codex)
+
+```powershell
+cd C:\Users\ASUS\Downloads\prj4
+git worktree add .worktrees\suite-frontend -b feat/suite-frontend suite-contract-v1
+cd .worktrees\suite-frontend\past_work\RETINA\newmix
+# read THIS file again from your worktree, then build the "Frontend deliverables" below
+```
+
+You own `frontend/**` only. Do not touch `backend/**`, `tests/**` or `docs/**` (ask via
+`docs/status/codex.md`). Claude's backend runs on **http://localhost:8001** (start it
+yourself if it is down, see "Running it locally"). Do not use or stop whatever is on `:8000`;
+that is the older MM-RETINA demo backend. Do not push or merge anything.
 
 | # | Feature | Backend (Claude) | Frontend (Codex) |
 |---|---|---|---|
@@ -27,9 +41,8 @@ branches end up conflicting.
 
 ## Git workflow
 
-- Base commit for both branches: the first commit of `feat/suite-backend`
-  (the one that adds this file). Codex: `git worktree add .worktrees/suite-frontend -b feat/suite-frontend feat/suite-backend~0`
-  taken **at that commit** (use its SHA if the branch has moved).
+- Base for both branches: the tag `suite-contract-v1` (this file plus `.env.example`, no
+  half-finished code). Codex: `git worktree add .worktrees\suite-frontend -b feat/suite-frontend suite-contract-v1`.
 - Claude works in `.claude/worktrees/suite-backend` on `feat/suite-backend`.
   Codex works in `.worktrees/suite-frontend` on `feat/suite-frontend`.
 - **Do not push, and do not merge into `main`, without the owner's explicit
@@ -53,10 +66,11 @@ foreach ($rel in "models","data","ml\gamma\checkpoints") {
 }
 ```
 
-- **Backend** (Claude's worktree): `cd backend; python -m uvicorn app:app --port 8000`.
-  Codex should point at it; if it is not running, start your own on `:8001`.
-  CORS already allows `:3000` and `:3100`.
-- **Frontend** (Codex): `cd frontend; npm install; $env:NEXT_PUBLIC_API_URL="http://localhost:8000"; npm run dev -- -p 3100`.
+- **Backend** (Claude's worktree `.claude\worktrees\suite-backend`): `cd past_work\RETINA\newmix\backend; python -m uvicorn app:app --port 8001`.
+  Port `8000` is taken by the older demo backend, so the Retina Suite backend uses `8001`.
+  Codex should point at it. CORS already allows `:3000` and `:3100`.
+- **Frontend** (Codex): `cd frontend; npm install; $env:NEXT_PUBLIC_API_URL="http://localhost:8001"; npm run dev -- -p 3100`.
+  Until the backend endpoints land, build against the example JSON in "API contract".
 - Keras is not installed in this Python, so the diabetes module reports "not
   loaded" in `/api/health`. That is expected; do not "fix" it.
 - 6 GB GPU shared with other jobs: run **one** backend at a time.
