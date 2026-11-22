@@ -6,6 +6,23 @@ delete history — append new entries above older ones.
 
 ---
 
+## 2026-11-21 (EXP-N01 — nested CV of the EXP-05 recipe: fusion complete)
+
+### Completed
+Wrote `training/nested_cv.py` (inner-fold epoch selection; outer folds identical to EXP-05; per-eye predictions saved). Smoke-tested, then ran fusion 3 seeds x 5 folds (15 runs). Started fundus-only + OCT-only runs on the same folds/seeds.
+
+### Results
+Honest nested numbers: acc 0.743, macro F1 0.665, AUC 0.870, Early recall 0.41 [0.28-0.56], Progressive recall 0.72 (vs EXP-05 0.820 / 0.781 / 0.924 / 0.615 / 0.833). Gap = removed selection optimism + 20% less training data (not separable here). Early<->Progressive confusion dominates; 8/26 Early patients wrong in all 3 seeds. See EXPERIMENTS.md `nested_cv_v1`.
+
+### Problems / blockers
+- GPU was unavailable for the first run (fold 0, seed 42 trained on CPU); later runs on GPU. A sleep stalled one CPU epoch ~88 min.
+- The demo backend serves ResNet18+ResNet18 single-split checkpoints (`fusion_run1.pt`), NOT the EXP-05 recipe. Abstention evidence must be tied to a specific checkpoint (see mailbox/).
+
+### Next action
+Finish fundus/OCT nested runs; error analysis of the Early->Progressive cases; keep one fold checkpoint for exact-checkpoint abstention evidence; publish `abstention.json`; post READY in mailbox/claude_to_codex.md.
+
+---
+
 ## 2026-09-27 (EXP-M01 — multi-dataset shared representation + case examples)
 
 ### Completed

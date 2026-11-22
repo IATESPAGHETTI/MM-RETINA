@@ -5,6 +5,67 @@ failed ones — a failed run is still real information.
 
 ---
 
+## Experiment: vessel_features (EXP-V01) — exploratory: do DRIVE-U-Net vessel features track GAMMA grade?
+
+### What
+Ran Kartik's DRIVE-trained vessel U-Net (merged RETINA/DIPP module; weights not in git) on all 100 GAMMA training fundus photos, CPU, via the newmix diabetes service. Per photo: `vessel_density_pct` (vessel pixels / retinal-disc pixels) and `fractal_dimension` (box-counting of mask boundary). Script `training/vessel_features.py`; outputs `results/vessel_features/` (features.csv, summary.json, 6 sanity overlays). The HbA1c Keras models could NOT be tested (TensorFlow/Keras 3 not installed here).
+
+### Results
+| Grade | n | Vessel density % (mean ± sd) | Fractal dim (mean) |
+|---|---:|---:|---:|
+| Normal | 50 | 9.29 ± 1.96 | 1.310 |
+| Early | 26 | 5.26 ± 3.18 | 1.156 |
+| Progressive | 24 | 3.75 ± 2.75 | 1.092 |
+Kruskal-Wallis p ~ 1e-10 for both features (exploratory, uncorrected). Restricting to the dominant camera (2992x2000, n=94; 6 Normal photos are from a different 1956x1934 camera) the pattern holds (density 8.98 / 5.26 / 3.75, p ~ 2e-9). A 2-feature logistic model in patient-level 5-fold CV (EXP-05 folds) scores 0.63 accuracy vs 0.50 majority baseline — well below the 0.74-0.82 of the fusion model.
+
+### Interpretation — do NOT overclaim
+Vessel loss is reported in glaucoma literature, so a real effect is plausible, but this data cannot establish it:
+- The U-Net was trained on DRIVE (different camera/population). Transfer to GAMMA is unverified beyond eyeballing 2 overlays.
+- Inspected overlays show the pipeline resizes every photo to 512x512 without keeping aspect ratio: the 3:2 GAMMA photos become squeezed ovals, and the disc area used as the density denominator differs from the circular camera-B photos. Glaucoma photos are also slightly darker (mean green 30-32 vs 35), which can reduce segmentation sensitivity regardless of anatomy.
+- Image quality / illumination could explain part or all of the grade gap. No quality control was applied. n=100, one centre.
+So: an interesting, strong *association* worth a controlled follow-up (aspect-preserving resize, quality matching, check segmentation on GAMMA), not evidence that vessel density detects glaucoma. Nothing here changes the frozen benchmark.
+
+---
+
+## Experiment: nested_cv_v1 (EXP-N01) — EXP-05 recipe re-evaluated with inner epoch selection (fusion done; fundus/OCT pending)
+
+### Why
+`cross_validate.py` selects each fold's best epoch on the same validation fold it reports, which is optimistic. EXP-N01 re-runs the frozen EXP-05 recipe (EfficientNet-B0 fundus + ResNet18 OCT, 8 slices single, vector fusion, img 160, focal loss, lr 1e-4, 25 epochs, patience 8) with **patient-level nested selection**: outer folds identical to EXP-05 (k=5, seed 42); each outer-train set is split ~80/20 (patient-level, grade-stratified) into inner-train / inner-val; epoch/early-stopping use inner-val only; the chosen checkpoint is scored once on the outer fold. 3 training seeds (42/43/44; seed also changes the inner split). No hyper-parameter grid. Script `training/nested_cv.py`; outputs `results/nested_cv_v1/` (per-run metrics, `per_eye_predictions.csv`, `summary.json`). Fold 0/seed 42 was trained on CPU (GPU briefly unavailable), the rest on the RTX 3060.
+
+### Results — fusion (15 runs; mean ± std over runs; pooled OOF recall with patient-bootstrap 95% CI)
+| Metric | EXP-05 (outer-selected) | EXP-N01 nested |
+|---|---:|---:|
+| Accuracy | 0.820 ± 0.055 | 0.743 ± 0.080 |
+| Macro F1 | 0.781 ± 0.061 | 0.665 ± 0.095 |
+| ROC-AUC | 0.924 ± 0.039 | 0.870 ± 0.054 |
+| QWK | 0.798 ± 0.113 | 0.766 ± 0.112 |
+| Early recall (pooled) | 16/26 = 0.615 | 0.410 [0.281, 0.561] |
+| Progressive recall (pooled) | 20/24 = 0.833 | 0.722 [0.577, 0.852] |
+| Normal recall (pooled) | 46/50 = 0.920 | 0.927 [0.860, 0.979] |
+
+### Interpretation
+The honest number is lower. The gap mixes two causes that this design cannot separate: (1) removal of selection optimism, and (2) ~20% less training data per fit (63-64 vs 79 samples). So 0.743 is not "the true EXP-05 accuracy"; it is accuracy for a model that must also pick its own epoch from 16 patients. The frozen 0.820 benchmark is unchanged and still labeled as outer-selected. Early recall is the weak point and is worse under nested selection. Pooled errors are dominated by Early<->Progressive confusion (seed 42: Early->Progressive 14, Progressive->Early 6); Early->Normal is rare (1-3). Of 26 Early patients, 8 are wrong in all 3 seeds, 8 in 2, 6 in 1, and 4 in none, so a large part of the Early error is systematic (not seed noise).
+
+### Caveats
+- n=100 patients, 26 Early; CIs are wide. Epoch chosen on 16 inner-val patients is itself noisy.
+- Seeds are not independent samples of patients; the bootstrap resamples patients over all seed rows.
+- Fundus-only and OCT-only nested runs pending (same folds/seeds).
+
+
+### Addendum — recipe-level abstention analysis (fusion, `training/abstention_analysis.py`)
+Cut-offs on max-softmax confidence chosen leave-one-outer-fold-out per seed (cut-off data and evaluated patients disjoint); patient-bootstrap 95% CIs. Output: `results/nested_cv_v1/abstention_recipe.json`. **Recipe-level evidence only, not a claim about any saved checkpoint.**
+| Target coverage | Actual coverage | Accuracy on answered [95% CI] | Accuracy on deferred |
+|---:|---:|---|---:|
+| 1.00 | 1.000 | 0.743 [0.670, 0.817] | — |
+| 0.90 | 0.887 | 0.774 [0.697, 0.850] | 0.500 |
+| 0.80 | 0.787 | 0.784 [0.709, 0.861] | 0.594 |
+| 0.70 | 0.670 | 0.816 [0.736, 0.891] | 0.596 |
+| 0.50 | 0.527 | 0.854 [0.772, 0.923] | 0.620 |
+Reading: deferring the least-confident ~20% raises accuracy on answered cases from 0.74 to ~0.78, but the CIs overlap the no-deferral accuracy heavily, and deferred cases are still right ~55-60% of the time. Confidence is only modestly informative on this data; "Needs review" should be presented as a weak safety net with this trade-off, not a validated cut-off. (Fusion only; fundus/OCT comparison pending.)
+
+
+---
+
 ## Experiment: m01 (EXP-M01) — Multi-Dataset Shared Representation Learning
 
 ### Goal

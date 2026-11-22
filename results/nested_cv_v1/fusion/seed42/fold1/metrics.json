@@ -1,0 +1,56 @@
+{
+  "modality": "fusion",
+  "outer_fold": 1,
+  "seed": 42,
+  "selected_epoch": 17,
+  "inner_val_loss": 0.5713213831186295,
+  "n_inner_val_patients": 16,
+  "n_outer_val_patients": 20,
+  "train_seconds": 402.87007546424866,
+  "metrics": {
+    "num_test_samples": 20,
+    "accuracy": 0.65,
+    "balanced_accuracy": 0.6,
+    "macro_f1": 0.5693121693121692,
+    "cohen_kappa": 0.46153846153846156,
+    "quadratic_weighted_kappa": 0.6176470588235294,
+    "per_class": {
+      "normal": {
+        "precision": 1.0,
+        "recall": 0.8,
+        "f1": 0.8888888888888888,
+        "support": 10
+      },
+      "early": {
+        "precision": 0.5,
+        "recall": 0.2,
+        "f1": 0.2857142857142857,
+        "support": 5
+      },
+      "progressive": {
+        "precision": 0.4,
+        "recall": 0.8,
+        "f1": 0.5333333333333333,
+        "support": 5
+      }
+    },
+    "roc_auc_ovr_macro": 0.7955555555555556
+  },
+  "confusion_matrix": [
+    [
+      8,
+      0,
+      2
+    ],
+    [
+      0,
+      1,
+      4
+    ],
+    [
+      0,
+      1,
+      4
+    ]
+  ]
+}

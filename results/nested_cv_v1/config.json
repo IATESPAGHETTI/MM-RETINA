@@ -1,0 +1,36 @@
+{
+  "manifest": "C:/Users/ASUS/Downloads/prj4/dataset/gamma_manifest.json",
+  "out_dir": "C:\\Users\\ASUS\\Downloads\\prj4\\.claude\\worktrees\\github-push-status-fdb470\\results\\nested_cv_v1",
+  "k": 5,
+  "fold_seed": 42,
+  "seeds": [
+    42,
+    43,
+    44
+  ],
+  "modalities": [
+    "fundus",
+    "oct"
+  ],
+  "fundus_encoder": "efficientnet_b0",
+  "oct_encoder": "resnet18",
+  "fusion_dim": 256,
+  "fusion_type": "vector",
+  "modality_dropout": 0.15,
+  "no_pretrained": false,
+  "img_size": 160,
+  "oct_slices": 8,
+  "oct_representation": "single",
+  "batch_size": 4,
+  "workers": 0,
+  "epochs": 25,
+  "lr": 0.0001,
+  "weight_decay": 0.0001,
+  "patience": 8,
+  "focal_loss": true,
+  "focal_gamma": 2.0,
+  "amp": true,
+  "keep_checkpoints": false,
+  "aggregate_only": false,
+  "smoke_test": false
+}

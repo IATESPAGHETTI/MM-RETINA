@@ -14,6 +14,8 @@ No login (removed on request). Research prototype, **not a medical device**.
 
 ```powershell
 .\run.ps1          # creates the venv, installs, starts API :8000 and app :3000
+.\run.ps1 -ApiPort 8001 -AppPort 3100   # same, on other ports (e.g. when the MM-RETINA website
+                                        # already owns :3000 and the older demo backend owns :8000)
 ```
 
 Then open http://localhost:3000/workspace. API docs: http://localhost:8000/docs.
@@ -33,6 +35,24 @@ Needs Python 3.10+ and Node 20+. The code falls back to CPU when no GPU is prese
 | Data & integrity | how the datasets relate and what the audit found |
 
 The original research site (home, dataset, model, results, presentation) still lives at `/`.
+
+## Extras API (comparison, saved patients, reports, batch, explanations)
+
+Full request/response shapes are in [`WORK_SPLIT.md`](WORK_SPLIT.md). Interactive docs: `/docs`.
+
+| Endpoint | Does |
+|---|---|
+| `POST /api/glaucoma/compare` | Runs the fundus-only, OCT-only and fusion GAMMA checkpoints on one input; returns the three predictions, an agreement banner, a needs-review flag (illustrative 0.60 threshold, not a validated operating point) and a display risk band |
+| `POST /api/cases`, `GET /api/cases`, `GET/DELETE /api/cases/{id}` | Saved results in SQLite (`var/suite.db`, git-ignored). **Study IDs only** (`^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$`; names are rejected) and **no images are stored**: heatmaps, previews and data URLs are stripped |
+| `GET /api/patients`, `GET/DELETE /api/patients/{study_id}` | Patient list, search, history and a trend series |
+| `GET /api/cases/{id}/report.pdf`, `POST /api/report.pdf` | One-page PDF (saved case, or a fresh result with its Grad-CAM; the stateless POST stores nothing) |
+| `POST /api/batch`, `GET /api/batch/{id}.csv` | ZIP of cases (`P-001/fundus.jpg` + `P-001/oct/00..07.jpg`, or `P-001/oct.jpg`), read in memory only; per-case errors; CSV export; optional `save=true` |
+| `POST /api/explain` | Plain-language explanation from DeepSeek, with a deterministic template fallback when there is no key or the provider fails (`source` says which). Only a sanitised numeric summary is sent, never images or study IDs |
+
+Setup: copy `backend/.env.example` to `backend/.env` and set `DEEPSEEK_API_KEY` (git-ignored; optional, the template fallback works without it).
+Tests: `python tests/test_extras_unit.py` (no server or models needed), and with a backend running, `python tests/smoke_extras.py http://localhost:8001`.
+
+The live GAMMA endpoints serve the early **single-split** checkpoints (64.3% accuracy on 14 test cases), not the 5-fold CV models; the comparison response says so in its `caveat`. No authentication, on purpose (prototype).
 
 ## What the evidence says (patient-grouped 5-fold CV, 303 eyes / 162 patients)
 

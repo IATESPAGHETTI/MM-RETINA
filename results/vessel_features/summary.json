@@ -1,0 +1,55 @@
+{
+  "n": 100,
+  "per_grade": {
+    "normal": {
+      "vessel_density_pct": {
+        "n": 50,
+        "mean": 9.287799999999999,
+        "std": 1.9601752212389543
+      },
+      "fractal_dimension": {
+        "n": 50,
+        "mean": 1.309668,
+        "std": 0.057392260873424965
+      }
+    },
+    "early": {
+      "vessel_density_pct": {
+        "n": 26,
+        "mean": 5.2626923076923084,
+        "std": 3.18029251194579
+      },
+      "fractal_dimension": {
+        "n": 26,
+        "mean": 1.155596153846154,
+        "std": 0.16349214655332955
+      }
+    },
+    "progressive": {
+      "vessel_density_pct": {
+        "n": 24,
+        "mean": 3.7541666666666664,
+        "std": 2.748922186677134
+      },
+      "fractal_dimension": {
+        "n": 24,
+        "mean": 1.0920291666666666,
+        "std": 0.14541301442612609
+      }
+    }
+  },
+  "kruskal_wallis": {
+    "vessel_density_pct": {
+      "H": 45.91593667907598,
+      "p": 1.0702396446959018e-10
+    },
+    "fractal_dimension": {
+      "H": 45.47997194387671,
+      "p": 1.3309127140043252e-10
+    }
+  },
+  "cv_logistic_two_features": {
+    "accuracy": 0.63,
+    "majority_baseline_accuracy": 0.5
+  }
+}
