@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, urlToFile, type AssessResult, type ClinicalField } from "@/lib/api";
 import { addRun } from "@/lib/history";
+import { ResultActions, ResultDisclaimer } from "@/components/workspace/ResultActions";
 import samples from "@/lib/samples.json";
 import {
   Badge, Button, Callout, EmptyState, ErrorNote, LoadingBlock, Meter, NumberField, PageHeader, Panel, ProbBars,
@@ -269,7 +270,7 @@ function Results({ r }: { r: AssessResult }) {
             <p className="text-xs text-ink-faint">{deferred ? "Stage" : "Most likely class"}</p>
             {deferred ? (
               <>
-                <p className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight">
+                <p className="mt-1 flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight">
                   Inconclusive
                   <Badge tone="warn">below confidence cut-off</Badge>
                 </p>
@@ -278,7 +279,7 @@ function Results({ r }: { r: AssessResult }) {
                 </p>
               </>
             ) : (
-              <p className="mt-1 flex items-center gap-3 text-3xl font-semibold tracking-tight">
+              <p className="mt-1 flex flex-wrap items-center gap-3 text-3xl font-semibold tracking-tight">
                 {head.prediction}
                 <Badge tone={severityTone(head.prediction)}>{(head.confidence * 100).toFixed(0)}% confidence</Badge>
               </p>
@@ -317,7 +318,7 @@ function Results({ r }: { r: AssessResult }) {
             {r.clinical.drivers.map((d) => {
               const w = Math.min(Math.abs(d.effect) / 0.35, 1) * 50;
               return (
-                <li key={d.feature} className="grid grid-cols-[140px_1fr_52px] items-center gap-3 text-sm">
+                <li key={d.feature} className="grid grid-cols-[minmax(0,1fr)_minmax(32px,1fr)_44px] items-center gap-2 text-sm sm:grid-cols-[140px_1fr_52px] sm:gap-3">
                   <span className="truncate text-ink-muted" title={d.label}>{d.label}</span>
                   <div className="relative h-2 rounded-full bg-white/[0.06]" aria-hidden>
                     <div className="absolute inset-y-0 left-1/2 w-px bg-line-strong" />
@@ -349,6 +350,7 @@ function Results({ r }: { r: AssessResult }) {
 
       {r.oct && r.clinical && (
         <Panel title="Per-source results" pad={false}>
+          <div className="overflow-x-auto" role="region" aria-label="Per-source results table" tabIndex={0}>
           <table className="w-full text-sm">
             <thead className="text-left text-xs text-ink-faint">
               <tr className="border-b border-line">
@@ -373,10 +375,20 @@ function Results({ r }: { r: AssessResult }) {
               ))}
             </tbody>
           </table>
+          </div>
         </Panel>
       )}
 
-      <p className="text-xs leading-relaxed text-ink-faint">{r.disclaimer}</p>
+      <ResultDisclaimer text={r.disclaimer} />
+      <ResultActions
+        disclaimer={r.disclaimer}
+        result={{ module: "glaucoma", title: "Glaucoma assessment", result: deferred ? "Inconclusive" : head.prediction,
+          confidence: head.confidence, inputs: source, detail: { probabilities: head.probabilities, disclaimer: r.disclaimer } }}
+        summary={{ module: "glaucoma", prediction: deferred ? "Inconclusive" : head.prediction, confidence: head.confidence,
+          probabilities: head.probabilities, needs_review: deferred ? { flag: true, reasons: ["below confidence cut-off"] } : undefined,
+          drivers: r.clinical?.drivers.slice(0, 5).map((driver) => ({ feature: driver.label, direction: driver.effect < 0 ? "lowers modeled score" : "raises modeled score" })) }}
+        report={{ probabilities: head.probabilities, flags: deferred ? ["Inconclusive"] : undefined }}
+      />
     </>
   );
 }

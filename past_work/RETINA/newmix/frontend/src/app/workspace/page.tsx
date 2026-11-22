@@ -6,6 +6,8 @@ import { api, type ModelsInfo } from "@/lib/api";
 import { clearRuns, useRuns } from "@/lib/history";
 import { serviceSummary, useHealth } from "@/lib/useHealth";
 import { Badge, Button, EmptyState, PageHeader, Panel, Stat } from "@/components/ui/primitives";
+import { RecentCases } from "@/components/workspace/PatientCases";
+import { ResultDisclaimer } from "@/components/workspace/ResultActions";
 
 const FLOWS = [
   {
@@ -24,7 +26,7 @@ const FLOWS = [
     href: "/workspace/diabetes",
     title: "Diabetes retina analysis",
     body: "Vessel segmentation, fractal complexity and an experimental HbA1c estimate.",
-    tag: "Fundus",
+    tag: "Experimental · fundus",
   },
 ];
 
@@ -35,7 +37,7 @@ const ago = (t: number) => {
 
 export default function Overview() {
   const { state } = useHealth();
-  const runs = useRuns();
+  const runs = useRuns().filter((run) => !run.patientId);
   const [m, setM] = useState<ModelsInfo | null>(null);
   useEffect(() => {
     const t = setTimeout(() => api.models().then(setM).catch(() => setM(null)), 0);
@@ -74,6 +76,7 @@ export default function Overview() {
         ))}
       </section>
 
+      <RecentCases />
       <div className="grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <Panel
           title="Recent runs"
@@ -99,13 +102,14 @@ export default function Overview() {
               ))}
             </ul>
           )}
+          <div className="px-5 pb-4 pt-3"><ResultDisclaimer /></div>
         </Panel>
 
         <Panel title="Models" subtitle="Loaded by the analysis service">
           {state.phase === "loading" && <p className="text-sm text-ink-faint">Checking…</p>}
           {state.phase === "offline" && (
             <p className="text-sm text-bad">
-              Service offline. Start it with <code className="rounded bg-white/5 px-1.5 py-0.5 text-xs">run.ps1</code> and reload.
+              The Retina Suite service on port 8001 is unavailable.
             </p>
           )}
           {state.phase === "ready" && (
@@ -116,6 +120,20 @@ export default function Overview() {
                   <Badge tone={i.ok ? "ok" : "bad"}>{i.ok ? "Ready" : "Unavailable"}</Badge>
                 </li>
               ))}
+              {state.health.services.extras && (
+                <>
+                  <li className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-ink-muted">Patient store</span>
+                    <Badge tone={state.health.services.extras.store.ready ? "ok" : "warn"}>
+                      {state.health.services.extras.store.ready ? "Ready" : "Browser fallback"}
+                    </Badge>
+                  </li>
+                  <li className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-ink-muted">Plain-language explanations</span>
+                    <Badge tone="info">{state.health.services.extras.explain.configured ? "Provider configured" : "Template"}</Badge>
+                  </li>
+                </>
+              )}
             </ul>
           )}
         </Panel>
