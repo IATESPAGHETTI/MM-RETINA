@@ -9,8 +9,11 @@ tsconfig.tsbuildinfo
 .env
 .env.local
 
-# patient / hospital data: never publish
-data/
+# patient / hospital data: never publish.
+# Anchored to this folder: an unanchored "data/" also matched the source directory
+# frontend/src/app/workspace/data/, so that page was never committed and the sidebar's
+# "Data & integrity" link 404'd in every fresh checkout.
+/data/
 
 # real patient scans copied from the Sankara cohort (keep samples.json numbers only)
 frontend/public/samples/oct-*.jpg
