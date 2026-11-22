@@ -57,6 +57,13 @@ export function RunIt() {
             </li>
             <li className="flex gap-3">
               <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-champagne" aria-hidden />
+              <span>
+                This website already uses port 3000, so the commands start the workspace on port 3100 and its API
+                on 8001. Plain <code className="text-ink">.\run.ps1</code> uses 3000 and 8000.
+              </span>
+            </li>
+            <li className="flex gap-3">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-champagne" aria-hidden />
               API reference at <code className="text-ink">/docs</code> on the backend port.
             </li>
             <li className="flex gap-3">

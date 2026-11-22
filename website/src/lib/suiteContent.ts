@@ -11,8 +11,12 @@
  * Illustrations (vessel tree, feature flow) carry no numbers and are labelled as illustrations in the UI.
  */
 
-/** Where the workspace app runs. Override with NEXT_PUBLIC_SUITE_URL when it is hosted elsewhere. */
-export const SUITE_URL = process.env.NEXT_PUBLIC_SUITE_URL ?? "http://localhost:3000/workspace";
+/**
+ * Where the workspace app runs. This website normally owns port 3000 and the older MM-RETINA demo
+ * backend owns 8000, so the suite is started on 3100 (app) and 8001 (API); see SUITE_RUN_COMMANDS.
+ * Override with NEXT_PUBLIC_SUITE_URL when it is hosted elsewhere.
+ */
+export const SUITE_URL = process.env.NEXT_PUBLIC_SUITE_URL ?? "http://localhost:3100/workspace";
 
 export type ModuleId = "multimodal" | "glaucoma" | "diabetes";
 
@@ -135,5 +139,5 @@ export const SUITE_FEATURES: readonly { icon: FeatureIcon; title: string; body: 
 
 export const SUITE_RUN_COMMANDS = [
   "Set-Location past_work/RETINA/newmix",
-  ".\\run.ps1",
+  ".\\run.ps1 -ApiPort 8001 -AppPort 3100",
 ] as const;
