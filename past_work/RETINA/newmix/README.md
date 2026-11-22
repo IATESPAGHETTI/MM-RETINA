@@ -14,6 +14,8 @@ No login (removed on request). Research prototype, **not a medical device**.
 
 ```powershell
 .\run.ps1          # creates the venv, installs, starts API :8000 and app :3000
+.\run.ps1 -ApiPort 8001 -AppPort 3100   # same, on other ports (e.g. when the MM-RETINA website
+                                        # already owns :3000 and the older demo backend owns :8000)
 ```
 
 Then open http://localhost:3000/workspace. API docs: http://localhost:8000/docs.
