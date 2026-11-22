@@ -20,6 +20,7 @@ export const NAV_LINKS = [
   { href: "/model", label: "Model" },
   { href: "/dataset", label: "Dataset" },
   { href: "/results", label: "Results" },
+  { href: "/suite", label: "Suite" },
   { href: "/research", label: "Research" },
   { href: "/research/journey", label: "Journey" },
 ] as const;
