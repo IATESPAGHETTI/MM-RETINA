@@ -32,10 +32,10 @@ that is the older MM-RETINA demo backend. Do not push or merge anything.
 | Area | Owner | The other agent may |
 |---|---|---|
 | `backend/**`, `tests/**`, `docs/**`, `README.md`, `WORK_SPLIT.md` | **Claude** | read only. Ask for changes via `docs/status/codex.md` |
-| `frontend/**` | **Codex** | read only. Ask for changes via `docs/status/claude.md` |
+| `frontend/**` | **Codex** | read only. Ask for changes via `docs/status/backend-status.md` |
 | API contract (this file, section "API contract") | **Claude** | propose changes only; Claude amends and says so in its status file |
 
-Each agent writes progress to its **own** status file (`docs/status/claude.md`,
+Each agent writes progress to its **own** status file (`docs/status/backend-status.md`,
 `docs/status/codex.md`). Never edit the other agent's file; that is how two
 branches end up conflicting.
 

@@ -18,8 +18,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 from fastapi import FastAPI  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 
-from routers import diabetes, glaucoma, system  # noqa: E402
-from services import clinical_service, defer_service, diabetes_service, gamma_service, oct_service  # noqa: E402
+import settings  # noqa: E402
+
+settings.load_env()  # backend/.env (git-ignored) -> os.environ, before anything reads a setting
+
+from routers import batch, cases, compare, diabetes, explain, glaucoma, reports, system  # noqa: E402
+from services import clinical_service, defer_service, diabetes_service, gamma_service, oct_service, store  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 log = logging.getLogger("newmix")
@@ -28,7 +32,8 @@ log = logging.getLogger("newmix")
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     for name, fn in (("deferral cut-offs", defer_service.load), ("OCT model", oct_service.load), ("clinical models", clinical_service.load),
-                     ("GAMMA multimodal", gamma_service.load), ("diabetes models", diabetes_service.load)):
+                     ("GAMMA multimodal", gamma_service.load), ("diabetes models", diabetes_service.load),
+                     ("case store", lambda: store.init() or store.status())):
         try:
             log.info("loaded %s: %s", name, fn())
         except Exception:  # noqa: BLE001 - one failing module must not take the others down
@@ -39,12 +44,20 @@ async def lifespan(_app: FastAPI):
 app = FastAPI(title="Retina Suite API", version="1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(","),
-    allow_methods=["GET", "POST"],
+    allow_origins=os.environ.get(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3100,http://127.0.0.1:3100",
+    ).split(","),
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 app.include_router(system.router)
 app.include_router(glaucoma.router)
+app.include_router(compare.router)
+app.include_router(explain.router)
+app.include_router(cases.router)
+app.include_router(reports.router)
+app.include_router(batch.router)
 app.include_router(diabetes.router)
 # the original /demo page posts here
 app.add_api_route("/api/predict", glaucoma.multimodal, methods=["POST"], tags=["legacy"])

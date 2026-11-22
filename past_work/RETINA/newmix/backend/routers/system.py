@@ -8,7 +8,7 @@ import numpy as np
 from fastapi import APIRouter
 
 import core
-from services import clinical_service, diabetes_service, oct_service
+from services import clinical_service, diabetes_service, explain_service, oct_service, store
 
 router = APIRouter(prefix="/api", tags=["system"])
 R = core.RESULTS_DIR
@@ -31,6 +31,7 @@ def health():
             "glaucoma_multimodal": {"ready": bool(gamma_loaded), "loaded": gamma_loaded,
                                     "errors": inference._load_errors},
             "diabetes": diabetes_service.status(),
+            "extras": {"store": store.status(), "explain": explain_service.status()},
         },
     }
 

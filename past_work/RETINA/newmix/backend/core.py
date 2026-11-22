@@ -25,6 +25,10 @@ DIPP_DIR = ROOT / "backend" / "dipp"
 MAX_UPLOAD_BYTES = 12 * 1024 * 1024
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp", "image/tiff"}
 
+DISCLAIMER = ("Research prototype for decision support. It is not a medical device and does not "
+              "replace an ophthalmologist's examination.")
+GAMMA_CAVEAT = "Single-split demonstration checkpoints, not the 5-fold CV models."
+
 
 async def read_image(upload: UploadFile, field: str = "image") -> Image.Image:
     if upload.content_type not in ALLOWED_TYPES:

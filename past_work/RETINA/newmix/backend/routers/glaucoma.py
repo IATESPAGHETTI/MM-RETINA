@@ -18,8 +18,7 @@ log = logging.getLogger("newmix.glaucoma")
 router = APIRouter(prefix="/api/glaucoma", tags=["glaucoma"])
 
 GAMMA_MODALITIES = {"fundus", "oct", "fusion"}
-DISCLAIMER = ("Research prototype for decision support. It is not a medical device and does not "
-              "replace an ophthalmologist's examination.")
+DISCLAIMER = core.DISCLAIMER
 
 
 def _fusion_weights() -> dict:
