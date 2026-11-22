@@ -4,6 +4,7 @@ import { ArchitecturePipeline } from "@/components/ArchitecturePipeline";
 import { DatasetFacts } from "@/components/DatasetFacts";
 import { ResultsPreview } from "@/components/ResultsPreview";
 import { ResearchIntegrity } from "@/components/ResearchIntegrity";
+import { SuiteTeaser } from "@/components/suite/SuiteTeaser";
 
 export default function Home() {
   return (
@@ -13,6 +14,7 @@ export default function Home() {
       <ArchitecturePipeline />
       <DatasetFacts />
       <ResultsPreview />
+      <SuiteTeaser />
       <ResearchIntegrity />
     </>
   );
