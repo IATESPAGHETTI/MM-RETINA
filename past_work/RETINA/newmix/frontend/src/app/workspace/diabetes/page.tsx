@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api, urlToFile, type DiabetesResult } from "@/lib/api";
 import { addRun } from "@/lib/history";
+import { ResultActions, ResultDisclaimer } from "@/components/workspace/ResultActions";
 import { Badge, Button, Callout, EmptyState, ErrorNote, LoadingBlock, Meter, PageHeader, Panel, ProbBars, Stat, UploadZone } from "@/components/ui/primitives";
 
 const SAMPLES = [
@@ -46,7 +47,7 @@ export default function DiabetesPage() {
       setPhase("done");
       addRun({
         module: "diabetes",
-        title: "Diabetes retina analysis",
+        title: "Diabetes retina analysis (experimental)",
         result: r.modules.hba1c?.binary.label ?? "Vessel analysis",
         confidence: r.modules.hba1c?.binary.confidence,
         inputs: "Fundus",
@@ -63,7 +64,7 @@ export default function DiabetesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Screening"
+        eyebrow="Experimental"
         title="Diabetes retina analysis"
         description="Segment retinal vessels, measure their branching complexity, and estimate an HbA1c range from a colour fundus photograph."
       />
@@ -167,7 +168,17 @@ export default function DiabetesPage() {
                   <span className="font-medium text-ink-muted">{k.replace("_", " ")}</span> not run: {why}.
                 </p>
               ))}
-              <p className="text-xs leading-relaxed text-ink-faint">{res.disclaimer}</p>
+              <ResultDisclaimer text={res.disclaimer} />
+              <ResultActions
+                disclaimer={res.disclaimer}
+                result={{ module: "diabetes", title: "Diabetes analysis (experimental)", result: m?.hba1c?.binary.label ?? "Vessel analysis",
+                  confidence: m?.hba1c?.binary.confidence, inputs: "fundus",
+                  detail: { experimental: true, vessel_density_pct: m?.vessels?.vessel_density_pct,
+                    fractal_dimension: m?.fractal?.fractal_dimension, disclaimer: res.disclaimer } }}
+                summary={{ module: "diabetes", prediction: m?.hba1c?.binary.label ?? "Vessel analysis",
+                  confidence: m?.hba1c?.binary.confidence, probabilities: m?.hba1c?.multi.probabilities }}
+                report={{ probabilities: m?.hba1c?.multi.probabilities, flags: ["Experimental diabetes analysis"] }}
+              />
             </>
           )}
         </div>

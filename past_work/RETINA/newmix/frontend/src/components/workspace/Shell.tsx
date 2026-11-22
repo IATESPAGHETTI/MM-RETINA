@@ -16,14 +16,18 @@ const Icon = ({ d }: { d: string }) => (
 const NAV: { heading: string; items: { href: string; label: string; icon: string; exact?: boolean }[] }[] = [
   {
     heading: "Workspace",
-    items: [{ href: "/workspace", label: "Overview", icon: "M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z", exact: true }],
+    items: [
+      { href: "/workspace", label: "Overview", icon: "M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6v-9h-6v9Zm0-16v5h6V4h-6Z", exact: true },
+      { href: "/workspace/patients", label: "Patients", icon: "M16 20v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2m11-12a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm9 12v-2a4 4 0 0 0-4-4m-1-10a4 4 0 0 1 0 8" },
+      { href: "/workspace/batch", label: "Batch", icon: "M3 7h18v13H3zM7 7V4h10v3m-9 6h8m-5 3h2" },
+    ],
   },
   {
     heading: "Screening",
     items: [
       { href: "/workspace/glaucoma", label: "Glaucoma", icon: "M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Zm10 3a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", exact: true },
       { href: "/workspace/glaucoma/multimodal", label: "Multimodal (GAMMA)", icon: "M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5M3 17.5l9 5 9-5" },
-      { href: "/workspace/diabetes", label: "Diabetes", icon: "M12 3s6 6.2 6 10.5A6 6 0 0 1 6 13.5C6 9.2 12 3 12 3Z" },
+      { href: "/workspace/diabetes", label: "Diabetes (experimental)", icon: "M12 3s6 6.2 6 10.5A6 6 0 0 1 6 13.5C6 9.2 12 3 12 3Z" },
     ],
   },
   {

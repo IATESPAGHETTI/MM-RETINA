@@ -11,6 +11,7 @@ export interface RunRecord {
   result: string;
   confidence?: number;
   inputs: string;
+  patientId?: string;
 }
 
 const KEY = "retina-suite:history:v1";
@@ -31,18 +32,22 @@ function read(): RunRecord[] {
 export function addRun(r: Omit<RunRecord, "id" | "at">) {
   const next = [{ ...r, id: crypto.randomUUID(), at: Date.now() }, ...read()].slice(0, MAX);
   cache = next;
+  let persisted = false;
   try {
     localStorage.setItem(KEY, JSON.stringify(next));
+    persisted = true;
   } catch {
     /* storage blocked: history just won't persist */
   }
   subs.forEach((f) => f());
+  return persisted;
 }
 
 export function clearRuns() {
-  cache = [];
+  cache = read().filter((run) => run.patientId);
   try {
-    localStorage.removeItem(KEY);
+    if (cache.length) localStorage.setItem(KEY, JSON.stringify(cache));
+    else localStorage.removeItem(KEY);
   } catch {
     /* ignore */
   }

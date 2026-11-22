@@ -269,9 +269,9 @@ export function UploadZone({
         {previewUrl ? (
           <div className="relative">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewUrl} alt={`Preview of ${file?.name ?? label}`} className="max-h-56 w-full bg-black object-contain" />
+            <img src={previewUrl} alt={`Preview of ${label}`} className="max-h-56 w-full bg-black object-contain" />
             <div className="flex items-center justify-between gap-2 border-t border-line bg-panel px-3 py-2 text-xs">
-              <span className="truncate text-ink-muted">{file?.name}</span>
+              <span className="truncate text-ink-muted">{file ? "Image loaded" : "Preview"}</span>
               <button
                 type="button"
                 onClick={() => {

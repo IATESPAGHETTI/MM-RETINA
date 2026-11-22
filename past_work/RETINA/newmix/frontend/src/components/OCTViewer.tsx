@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 type OCTViewerProps = {
   sampleId: string;
   numSlices: number;
   className?: string;
+  sliceUrls?: readonly string[];
+  label?: string;
+  compact?: boolean;
 };
 
 /** Real, interactive OCT B-scan viewer — drags through actual extracted
@@ -13,12 +16,13 @@ type OCTViewerProps = {
  * not a stand-in animation. Frames are served as plain static JPEGs from
  * /public/oct-volume/<sampleId>/, so only the currently-viewed (and a small
  * look-ahead window of) slices are ever fetched — never the whole volume. */
-export function OCTViewer({ sampleId, numSlices, className }: OCTViewerProps) {
+export function OCTViewer({ sampleId, numSlices, className, sliceUrls, label, compact }: OCTViewerProps) {
   const [index, setIndex] = useState(Math.floor(numSlices / 2));
   const [playing, setPlaying] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  const slicePath = (i: number) => `/oct-volume/${sampleId}/${String(i).padStart(3, "0")}.jpg`;
+  const slicePath = useCallback(
+    (i: number) => sliceUrls?.[i] ?? `/oct-volume/${sampleId}/${String(i).padStart(3, "0")}.jpg`,
+    [sampleId, sliceUrls],
+  );
 
   // Prefetch a small neighborhood around the current slice so scrubbing
   // feels instant without ever loading all 256 frames at once.
@@ -30,8 +34,7 @@ export function OCTViewer({ sampleId, numSlices, className }: OCTViewerProps) {
       const img = new window.Image();
       img.src = slicePath(i);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, numSlices, sampleId]);
+  }, [index, numSlices, slicePath]);
 
   useEffect(() => {
     if (!playing) return;
@@ -43,9 +46,12 @@ export function OCTViewer({ sampleId, numSlices, className }: OCTViewerProps) {
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === "ArrowLeft") setIndex((i) => Math.max(0, i - 1));
-      if (e.key === "ArrowRight") setIndex((i) => Math.min(numSlices - 1, i + 1));
-      if (e.key === " ") {
+      if (e.target !== e.currentTarget) return;
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setPlaying(false);
+        setIndex((i) => Math.max(0, Math.min(numSlices - 1, i + (e.key === "ArrowLeft" ? -1 : 1))));
+      } else if (e.key === " ") {
         e.preventDefault();
         setPlaying((p) => !p);
       }
@@ -55,23 +61,22 @@ export function OCTViewer({ sampleId, numSlices, className }: OCTViewerProps) {
 
   return (
     <div
-      ref={containerRef}
       className={className}
       role="group"
-      aria-label={`Interactive OCT B-scan viewer, sample ${sampleId}`}
+      aria-label={`Interactive OCT B-scan viewer, ${label ?? `sample ${sampleId}`}`}
       tabIndex={0}
       onKeyDown={onKeyDown}
     >
-      <div className="relative aspect-[320/620] w-full overflow-hidden rounded-2xl border border-white/8 bg-bg-elevated">
+      <div className={`relative w-full overflow-hidden rounded-2xl border border-white/8 bg-bg-elevated ${compact ? "h-44 sm:h-52" : "aspect-[320/620]"}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={slicePath(index)}
-          alt={`OCT B-scan ${index + 1} of ${numSlices}, GAMMA sample ${sampleId}`}
-          className="h-full w-full object-cover"
+          alt={`OCT B-scan ${index + 1} of ${numSlices}`}
+          className={`h-full w-full ${compact ? "object-contain" : "object-cover"}`}
           draggable={false}
         />
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center justify-between p-4 font-mono text-[10px] uppercase tracking-wider text-ink-muted">
-          <span>OCT volume — GAMMA {sampleId}</span>
+          <span>{label ?? `OCT volume — GAMMA ${sampleId}`}</span>
           <span>
             B-scan {String(index + 1).padStart(3, "0")} / {numSlices}
           </span>
@@ -120,8 +125,9 @@ export function OCTViewer({ sampleId, numSlices, className }: OCTViewerProps) {
             setPlaying(false);
             setIndex(Number(e.target.value));
           }}
-          className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--accent-champagne)]"
+          className="h-1 min-w-0 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-[var(--accent-champagne)]"
           aria-label="B-scan position"
+          aria-valuetext={`Slice ${index + 1} of ${numSlices}`}
         />
 
         <button
